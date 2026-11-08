@@ -1,0 +1,54 @@
+' 统一样式：供所有图文件通过 !include 引用
+' 用法：!include _style.inc.puml
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Microsoft YaHei"
+skinparam defaultFontSize 14
+skinparam shadowing false
+
+skinparam actorStyle stick
+skinparam packageStyle rectangle
+skinparam nodesep 28
+
+skinparam usecase {
+  BackgroundColor #F4F7FB
+  BorderColor #2B4C7E
+  ArrowColor #2B4C7E
+  FontColor #1A1A1A
+}
+skinparam class {
+  BackgroundColor #F7F9FC
+  BorderColor #2B4C7E
+  ArrowColor #2B4C7E
+  FontColor #1A1A1A
+  AttributeFontColor #333333
+  HeaderBackgroundColor #E3EBF6
+}
+skinparam sequence {
+  ArrowColor #2B4C7E
+  LifeLineBorderColor #9AB0CC
+  ParticipantBackgroundColor #E3EBF6
+  ParticipantBorderColor #2B4C7E
+  ActorBackgroundColor #F4F7FB
+  ActorBorderColor #2B4C7E
+  NoteBackgroundColor #FFF9E6
+  NoteBorderColor #D8B24A
+  GroupBackgroundColor #F7F9FC
+}
+skinparam activity {
+  BackgroundColor #F4F7FB
+  BorderColor #2B4C7E
+  ArrowColor #2B4C7E
+  DiamondBackgroundColor #FFF9E6
+  DiamondBorderColor #D8B24A
+  FontColor #1A1A1A
+}
+skinparam state {
+  BackgroundColor #F4F7FB
+  BorderColor #2B4C7E
+  ArrowColor #2B4C7E
+  FontColor #1A1A1A
+}
+skinparam note {
+  BackgroundColor #FFF9E6
+  BorderColor #D8B24A
+}

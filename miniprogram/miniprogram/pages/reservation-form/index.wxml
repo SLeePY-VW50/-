@@ -1,0 +1,49 @@
+<view class="page">
+  <view class="page-title">确认预约</view>
+  <view class="muted page-subtitle">最终可用性由后端在提交时重新校验</view>
+  <view class="card form-card">
+    <view class="segment" aria-label="分配方式">
+      <text class="{{allocationMode === 'FIXED' ? 'active' : ''}}" aria-selected="{{allocationMode === 'FIXED'}}" data-value="FIXED" bindtap="onAllocation">固定时段</text>
+      <text class="{{allocationMode === 'SCHEDULABLE' ? 'active' : ''}}" aria-selected="{{allocationMode === 'SCHEDULABLE'}}" data-value="SCHEDULABLE" bindtap="onAllocation">可调度</text>
+    </view>
+    <view class="form-row"><text>日期</text><text>{{date}}</text></view>
+    <view wx:if="{{allocationMode === 'FIXED'}}" class="form-row"><text>正式时段</text><text>{{startTime}}–{{endTime}}</text></view>
+    <view wx:else>
+      <view class="form-row">
+        <label class="field-label" for="window-start">窗口开始</label>
+        <input id="window-start" class="form-input" placeholder="如 08:00" data-field="windowStart" value="{{windowStart}}" bindinput="onText" />
+      </view>
+      <view class="form-row">
+        <label class="field-label" for="window-end">窗口结束</label>
+        <input id="window-end" class="form-input" placeholder="如 12:00" data-field="windowEnd" value="{{windowEnd}}" bindinput="onText" />
+      </view>
+      <picker range="{{durationOptions}}" value="{{durationIndex}}" aria-label="所需时长" bindchange="onDuration">
+        <view class="form-row"><text>所需时长</text><text>{{durationMinutes}} 分钟</text></view>
+      </picker>
+    </view>
+    <view class="segment" aria-label="预约方式">
+      <text class="{{reservationMode === 'ROOM' ? 'active' : ''}}" aria-selected="{{reservationMode === 'ROOM'}}" data-value="ROOM" bindtap="onMode">整室</text>
+      <text class="{{reservationMode === 'SEAT' ? 'active' : ''}}" aria-selected="{{reservationMode === 'SEAT'}}" data-value="SEAT" bindtap="onMode">工位</text>
+    </view>
+    <view class="form-row">
+      <label class="field-label" for="attendee-count">使用人数</label>
+      <input id="attendee-count" class="form-input" type="number" value="{{attendeeCount}}" bindinput="onCount" />
+    </view>
+    <view wx:if="{{reservationMode === 'SEAT'}}" class="muted form-note">工位数与人数一致，提交后由系统正式分配</view>
+    <picker range="{{specOptions}}" value="{{specIndex}}" aria-label="最低配置" bindchange="onSpec">
+      <view class="form-row"><text>最低配置</text><text>{{specOptions[specIndex]}}</text></view>
+    </picker>
+    <picker range="{{windowOptions}}" value="{{windowIndex}}" aria-label="靠窗偏好" bindchange="onWindow">
+      <view class="form-row"><text>靠窗偏好</text><text>{{windowOptions[windowIndex]}}</text></view>
+    </picker>
+    <view class="form-row">
+      <label class="field-label" for="zone-code">偏好区域</label>
+      <input id="zone-code" class="form-input" placeholder="可留空" data-field="zoneCode" value="{{zoneCode}}" bindinput="onText" />
+    </view>
+    <label class="field-label purpose-label" for="reservation-purpose">使用用途</label>
+    <textarea id="reservation-purpose" class="purpose" maxlength="500" placeholder="请简要说明使用用途" data-field="purpose" value="{{purpose}}" bindinput="onText" />
+    <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">{{error}}</view>
+    <view wx:if="{{success}}" class="success" aria-live="polite">{{success}}</view>
+    <button class="button-primary submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">确认提交预约</button>
+  </view>
+</view>

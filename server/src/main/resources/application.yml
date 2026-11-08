@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: lab-reservation-server
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-init-sql: "SET time_zone = '+08:00'"
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      password: ${LAB_REDIS_PASSWORD:}
+      timeout: 2s
+  jackson:
+    time-zone: Asia/Shanghai
+
+server:
+  port: 8080
+
+app:
+  wechat:
+    app-id: ${WECHAT_APP_ID:}
+    app-secret: ${WECHAT_APP_SECRET:}
+    checkin-qr-secret: ${WECHAT_CHECKIN_QR_SECRET:}
+  jwt:
+    expiration: 2h
+  checkin:
+    public:
+      account-limit: 60
+      session-code-limit: 10
+      session-address-limit: 30
+      window: 60s
+  reservation:
+    jobs:
+      enabled: false
+      batch-size: 100
+      fixed-delay: 60s
+      initial-delay: 15s
+  schedule:
+    worker:
+      enabled: false
+      fixed-delay: 60s
+      initial-delay: 15s
+    batch-lock:
+      lease: 2m
+    genetic:
+      population-size: 80
+      generations: 200
+      seed: 0
+  experiment:
+    repeats: 10
+    recovery:
+      enabled: false
+      batch-limit: 8
+      fixed-delay: 30s
+    batch-lock:
+      lease: 2m
+    genetic:
+      population-size: 80
+      generations: 200
+  statistics:
+    jobs:
+      enabled: false
+    max-assignment-rows: 50000

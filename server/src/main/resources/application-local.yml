@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3307/lab_reservation?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: lab_app
+    password: ${LAB_DB_PASSWORD:}
+
+app:
+  wechat:
+    app-id: ${WECHAT_APP_ID:}
+    app-secret: ${WECHAT_APP_SECRET:}
+    checkin-qr-secret: ${WECHAT_CHECKIN_QR_SECRET:local-only-checkin-qr-secret-32-bytes}
+  jwt:
+    secret: local-only-development-jwt-secret-2026-not-for-production
+  internal-token: local-ai-internal-token
+  reservation:
+    jobs:
+      enabled: true
+  schedule:
+    worker:
+      enabled: true
+  statistics:
+    jobs:
+      enabled: true
+  experiment:
+    recovery:
+      enabled: true

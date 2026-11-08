@@ -1,0 +1,127 @@
+@startuml
+!include ../_style.inc.puml
+title 图3-1 高校实验室智能预约与排期系统 用例图
+
+left to right direction
+
+actor "学生" as stu
+actor "实验室管理员\n（只读）" as admin
+actor "任课教师" as teacher
+actor "系统管理员" as sysadmin
+actor "定时排期任务\n（系统时钟）" as cron
+
+rectangle "高校实验室智能预约与排期系统" {
+  package "预约业务" {
+    usecase "查询实验室与空闲时段" as UC01
+    usecase "提交预约申请" as UC02
+    usecase "取消预约" as UC03
+    usecase "预约签到与签退" as UC04
+    usecase "查看个人预约与信用分" as UC05
+    usecase "绑定微信与学号" as UC06
+    usecase "智能预约问答与草稿" as UC20
+  }
+  package "使用与信用" {
+    usecase "查看预约与使用记录" as UC07
+    usecase "违规与爽约处理" as UC08
+    usecase "申诉与信用恢复" as UC09
+  }
+  package "资源管理" {
+    usecase "维护实验室/工位/设备/终端" as UC10
+    usecase "配置开放时间与预约规则" as UC11
+    usecase "登记设备故障与维护" as UC12
+  }
+  package "智能排期（核心）" {
+    usecase "自动生成并发布主排期方案" as UC13
+    usecase "校验时段冲突" as UC14
+    usecase "查看排期与分配结果" as UC15
+  }
+  package "统计分析" {
+    usecase "查看利用率热力图" as UC16
+    usecase "导出统计报表" as UC17
+  }
+  package "系统管理" {
+    usecase "用户与角色权限管理" as UC18
+    usecase "预约数据备份与恢复" as UC19
+  }
+}
+
+stu --> UC01
+stu --> UC02
+stu --> UC03
+stu --> UC04
+stu --> UC05
+stu --> UC06
+stu --> UC09
+stu --> UC20
+
+teacher --> UC01
+teacher --> UC02
+teacher --> UC03
+teacher --> UC04
+teacher --> UC05
+teacher --> UC09
+teacher --> UC16
+
+admin --> UC07
+admin --> UC15
+admin --> UC16
+admin --> UC17
+
+sysadmin --> UC07
+sysadmin --> UC08
+sysadmin --> UC09
+sysadmin --> UC10
+sysadmin --> UC11
+sysadmin --> UC12
+sysadmin --> UC15
+sysadmin --> UC16
+sysadmin --> UC17
+sysadmin --> UC18
+sysadmin --> UC19
+
+cron --> UC08
+cron --> UC13
+
+UC02 ..> UC01 : <<include>>
+UC02 ..> UC14 : <<include>>
+UC13 ..> UC14 : <<include>>
+
+note right of UC02
+  FIXED：事务成功后直接已通过
+  SCHEDULABLE：提交后进入待排期
+  正式分配、位图和日志同事务
+end note
+
+note right of UC04
+  微信小程序：绑定账号 + 扫码
+  实验室电脑：绑定终端 + 学号密码
+  两种渠道均校验本人预约、实验室和时间窗
+end note
+
+note right of UC20
+  小程序使用 invoke，Web 使用 SSE
+  仅提供白名单只读工具
+  草稿由用户确认后进入原预约事务
+end note
+
+note right of UC07
+  实验室管理员仅具有查询权限
+  后端同时限制全部写接口
+end note
+
+note bottom of UC13
+  三套算法各自任务共享快照
+  主算法合格方案自动重检发布
+  其他算法仅用于实验对照
+end note
+
+note bottom of UC09
+  学生/教师提交，系统管理员核定
+  扣分与恢复均追加信用记录
+end note
+
+note bottom of UC16
+  到时结束与日统计由定时任务内部触发
+  UC16 / UC17 仅表示查看与导出结果
+end note
+@enduml

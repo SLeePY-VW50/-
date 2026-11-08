@@ -1,0 +1,85 @@
+@startuml
+!include ../_style.inc.puml
+title 图2-1 系统功能模块结构图
+
+skinparam linetype ortho
+skinparam nodesep 38
+skinparam ranksep 55
+left to right direction
+
+rectangle "高校实验室\n智能预约与排期系统" as ROOT
+rectangle "1 预约业务\n子系统" as M1
+rectangle "2 使用与信用\n子系统" as M2
+rectangle "3 资源与规则\n管理子系统" as M3
+rectangle "4 智能排期\n子系统（核心）" as M4
+rectangle "5 统计分析与\n决策子系统" as M5
+rectangle "6 系统管理\n子系统" as M6
+rectangle "7 移动与签到\n渠道子系统" as M7
+rectangle "8 智能助手\n子系统" as M8
+
+rectangle "1.1 实验室与工位\n空闲时段查询" as M11
+rectangle "1.2 单条/批量预约\n与取消" as M12
+rectangle "1.3 个人预约与\n信用中心" as M13
+rectangle "2.1 预约与使用\n记录查看" as M21
+rectangle "2.2 违规与\n爽约处理" as M22
+rectangle "2.3 信用流水与\n申诉核定" as M23
+rectangle "3.1 实验室/工位/设备\n与签到终端档案" as M31
+rectangle "3.2 开放时间与\n预约规则" as M32
+rectangle "3.3 设备故障\n与维护" as M33
+rectangle "4.1 可调度需求与\n资源快照" as M41
+rectangle "4.2 双向冲突校验\n（位图+事务）" as M42
+rectangle "4.3 两阶段排期引擎\n(FCFS/贪心/遗传)" as M43
+rectangle "4.4 主方案自动\n重检与发布" as M44
+rectangle "4.5 可复现算法\n对比实验" as M45
+rectangle "5.1 计划/实际利用率\n热力图" as M51
+rectangle "5.2 预约趋势与\n峰谷分析" as M52
+rectangle "5.3 报表导出" as M53
+rectangle "6.1 用户与角色权限" as M61
+rectangle "6.2 参数配置与审计日志" as M62
+rectangle "6.3 数据备份与恢复演练" as M63
+rectangle "7.1 微信小程序\n学生端" as M71
+rectangle "7.2 微信与学号\n唯一绑定" as M72
+rectangle "7.3 小程序扫码与\n电脑账号签到" as M73
+rectangle "7.4 终端绑定、失败限次\n与敏感信息保护" as M74
+rectangle "8.1 规则与预约\n智能问答" as M81
+rectangle "8.2 实验室与工位\n空闲工具查询" as M82
+rectangle "8.3 预约草稿生成\n与用户确认" as M83
+rectangle "8.4 对话记忆、工具权限\n与输出安全" as M84
+
+ROOT -- M1
+ROOT -- M2
+ROOT -- M3
+ROOT -- M4
+ROOT -- M5
+ROOT -- M6
+ROOT -- M7
+ROOT -- M8
+M1 -- M11
+M1 -- M12
+M1 -- M13
+M2 -- M21
+M2 -- M22
+M2 -- M23
+M3 -- M31
+M3 -- M32
+M3 -- M33
+M4 -- M41
+M4 -- M42
+M4 -- M43
+M4 -- M44
+M4 -- M45
+M5 -- M51
+M5 -- M52
+M5 -- M53
+M6 -- M61
+M6 -- M62
+M6 -- M63
+M7 -- M71
+M7 -- M72
+M7 -- M73
+M7 -- M74
+M8 -- M81
+M8 -- M82
+M8 -- M83
+M8 -- M84
+@enduml

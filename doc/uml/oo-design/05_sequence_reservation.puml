@@ -1,0 +1,92 @@
+@startuml
+!include ../_style.inc.puml
+!pragma layout smetana
+title 图4-2 提交预约顺序图（固定 / 可调度分流与直接生效）
+
+skinparam maxMessageSize 170
+skinparam ParticipantPadding 10
+skinparam BoxPadding 7
+
+actor "学生 / 教师" as user
+participant "微信小程序 / Web" as web
+participant "ReservationController" as ctrl
+participant "ReservationServiceImpl" as svc
+participant "RuleValidator" as rule
+participant "ConflictDetector" as det
+participant "LockManager\n(Redis)" as lock
+participant "BitmapDao" as dao
+participant "SeatBitmapMapper" as seatDao
+database "MySQL" as db
+
+user -> web : 提交分配模式、粒度、时段、人数与偏好
+web -> ctrl : POST /api/reservations
+ctrl -> svc : createReservation(dto)
+svc -> rule : 校验登录、信用、开放时间、时长与容量
+rule --> svc : 校验通过
+
+alt SCHEDULABLE 可调度需求
+  svc -> db : 事务：INSERT 预约单(待排期) + 初始日志
+  db --> svc : 提交成功（不占位）
+  svc --> ctrl : ReservationVO(待排期)
+else FIXED 固定时空预约
+  svc -> lock : 加锁 resv:lab:{labId}:{date}\n等待 3 秒，返回唯一 token
+  alt 获取锁失败
+    lock --> svc : 无 token
+    svc --> ctrl : 当前预约高峰，请稍后重试
+  else 获取锁成功
+    lock --> svc : token
+    svc -> db : BEGIN
+    svc -> dao : 确保并锁定整室日位图行(labId, date)
+    dao -> db : 零掩码行不存在则插入\nSELECT ... FOR UPDATE
+    db --> dao : 返回整室行与版本号
+    svc -> dao : 查询整室掩码
+    svc -> seatDao : 一次联表查询全部工位掩码
+    seatDao --> svc : 工位掩码列表（无行按 0）
+
+    svc -> det : 双向冲突检测(申请, 最新资源快照)
+    alt 整室申请
+      det -> det : Q AND (R OR 全部 S[i])
+    else 工位申请
+      det -> det : 先 Q AND R\n再逐工位 Q AND S[i]\n过滤停用与硬配置不符工位
+    end
+
+    alt 存在冲突或可用工位不足
+      det --> svc : CONFLICT
+      svc -> db : ROLLBACK
+      svc --> ctrl : 返回冲突时段与可用建议
+    else 检测通过
+      det --> svc : AVAILABLE / 入选工位
+      alt ROOM 整室预约
+        svc -> db : INSERT 预约单(已通过)
+        svc -> dao : 条件占用整室(mask, version)
+        dao -> db : UPDATE ... WHERE version=? AND (mask & reqMask)=0
+      else SEAT 工位预约
+        svc -> db : INSERT 预约单(已通过)\n+ K 条 t_reservation_seat 正式分配
+        svc -> seatDao : 对 K 个工位执行条件占用
+        seatDao -> db : UPDATE ... WHERE version=? AND (mask & reqMask)=0
+      end
+      svc -> db : INSERT t_reservation_log
+
+      alt 任一写入失败或影响行数不符
+        db --> svc : 异常 / 影响行数 = 0
+        svc -> db : ROLLBACK（全部写入）
+        svc --> ctrl : 提交失败，可重新读取后重试
+      else 全部写入成功
+        db --> svc : 预约、正式分配/位图、日志均成功
+        svc -> db : COMMIT
+        svc --> ctrl : ReservationVO(已通过)
+      end
+    end
+    svc -> lock : finally：按 token 释放锁\n（事务结束后）
+  end
+end
+
+ctrl --> web : Result{code, message, data}
+web --> user : 返回已通过 / 待排期 / 冲突或失败原因
+
+note over det,seatDao
+  单个 48 位掩码运算为 O(1)，全工位扫描为 O(m)。
+  已通过预约必须与完整正式分配同时提交，
+  任一部分失败都不会留下生效预约或孤儿占用。
+end note
+@enduml

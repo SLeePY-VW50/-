@@ -1,0 +1,351 @@
+@startuml
+!include ../_style.inc.puml
+title 图4-1 系统设计类图（控制 / 业务 / 算法 / 持久四层）
+
+skinparam linetype ortho
+skinparam nodesep 20
+skinparam ranksep 48
+skinparam classAttributeIconSize 0
+left to right direction
+
+package "持久层 Mapper / DAO（MyBatis-Plus）" {
+  interface UserMapper {
+    + selectByStudentNo(studentNo) : User
+    + selectByOpenid(openid) : User
+    + bindOpenid(userId, openid, bindTime) : int
+  }
+  interface ReservationMapper {
+    + insert(entity) : int
+    + selectByUser(userId) : List
+    + selectEligibleCheckin(userId, labId, now) : List
+    + updateStatus(id, expected, target) : int
+  }
+  interface ReservationBatchMapper {
+    + insertBatch(entity) : int
+    + insertItems(list) : int
+    + selectItems(batchId) : List
+  }
+  interface BitmapDao {
+    + 确保并锁定整室日行(labId, date) : int
+    + 查整室掩码(labId, date) : long
+    + 条件占用整室(labId, date, mask, version) : int
+    + 释放整室(labId, date, mask, version) : int
+  }
+  interface SeatMapper {
+    + selectByLab(labId) : List
+    + selectActive(labId) : List
+  }
+  interface SeatBitmapMapper {
+    + 查工位掩码列表(labId, date) : List
+    + 条件占用工位(seatId, date, mask, version) : int
+    + 释放工位(seatId, date, mask, version) : int
+  }
+  interface DeviceMapper {
+    + selectTerminal(terminalCode) : Device
+    + selectValidTerminal(terminalCode, labId) : Device
+  }
+  interface CreditRecordMapper {
+    + append(record) : int
+    + selectByUser(userId) : List
+  }
+  interface AppealMapper {
+    + insert(entity) : int
+    + review(id, status, opinion) : int
+  }
+  interface ScheduleTaskMapper {
+    + insert(entity) : int
+    + selectBatch(batchNo) : List
+    + selectPrimary(batchNo) : Task
+  }
+  interface ScheduleResultMapper {
+    + batchInsert(list) : int
+    + selectByTask(taskId) : List
+    + markPublished(taskId, resultIds, publishTime) : int
+  }
+  class LockManager {
+    + 加锁(key, 等待时间) : Token
+    + 释放(key, token) : void
+  }
+  class WeChatGateway {
+    + 换取openid(临时凭证) : String
+  }
+}
+
+package "算法层 Algorithm（纯计算）" {
+  interface ConflictDetector {
+    + 检测(申请, 资源快照) : Result
+  }
+  class IntervalConflictDetector {
+    + 检测(申请, 资源快照) : Result
+  }
+  class BitmapConflictDetector {
+    + 检测(申请, 资源快照) : Result
+    + 整室并集掩码(资源快照) : long
+  }
+  interface SeatAllocator {
+    + 分配(请求, 候选工位) : List
+  }
+  class GreedySeatAllocator {
+    + 分配(请求, 候选工位) : List
+    + 同区域连续选择(候选工位, K) : List
+    + 碎片回退选择(候选工位, K) : List
+  }
+  interface ScheduleEngine {
+    + 排期(需求列表, 资源快照, 参数) : List
+  }
+  class FcfsEngine {
+    + 排期(需求列表, 资源快照, 参数) : List
+  }
+  class GreedyEngine {
+    - 权重 : Map
+    + 打分(申请) : double
+    + 排期(需求列表, 资源快照, 参数) : List
+  }
+  class GeneticEngine {
+    - 种群规模 / 交叉率 / 变异率 / 代数
+    + 编码(需求列表) : 染色体
+    + 锦标赛选择(种群, 规模3) : 染色体
+    + 交叉(a, b) : 染色体
+    + 变异(c) : 染色体
+    + 排期(需求列表, 资源快照, 参数) : List
+  }
+  class FitnessEvaluator {
+    + 预计分配成功率(染色体) : double
+    + 预计资源利用率(染色体) : double
+    + 时间碎片率(染色体) : double
+    + 约束违反惩罚(染色体) : double
+  }
+  class Evaluator {
+    + 分配成功率(最终结果) : double
+    + 平均工位利用率(最终结果) : double
+    + 工位偏好错配率(最终结果) : double
+    + 时间碎片率(最终结果) : double
+    + 两阶段耗时(任务) : Metric
+  }
+}
+
+package "控制层 Controller（Spring Boot REST）" {
+  class ReservationController {
+    + queryAvailability(labId, date) : Result
+    + createReservation(dto) : Result
+    + createBatch(dto) : Result
+    + cancelReservation(id, reason) : Result
+    + myReservations(page) : Result
+  }
+  class AuthController {
+    + wechatLogin(dto) : Result
+    + bindWechat(dto) : Result
+  }
+  class CheckinController {
+    + qrCheckin(dto) : Result
+    + terminalCheckin(dto) : Result
+    + checkOut(resvId) : Result
+  }
+  class ResourceController {
+    + saveLab(dto) : Result
+    + saveSeat(dto) : Result
+    + saveTimeRule(dto) : Result
+    + saveTerminal(dto) : Result
+  }
+  class ScheduleQueryController {
+    + taskProgress(taskId) : Result
+    + resultList(taskId) : Result
+    + batchMetrics(batchNo) : Result
+  }
+  class CreditController {
+    + creditRecords(userId) : Result
+    + submitAppeal(dto) : Result
+    + reviewAppeal(id, dto) : Result
+  }
+  class StatController {
+    + usageRecords(query) : Result
+    + heatmap(labId, range) : Result
+    + export(range) : File
+  }
+  class ExperimentController {
+    + run(dto) : Result
+    + compare(batchNo) : Result
+  }
+}
+
+package "业务层 Service（事务边界）" {
+  interface ReservationService {
+    + queryAvailability(labId, date) : List
+    + createReservation(dto) : ReservationVO
+    + createBatch(dto) : BatchVO
+    + cancel(id, reason) : void
+  }
+  class RuleValidator {
+    + 校验提交规则(dto) : Result
+    + 计算有效规则(labId) : Rule
+  }
+  class ReservationServiceImpl {
+    - conflictDetector : ConflictDetector
+    - lockManager : LockManager
+    - ruleValidator : RuleValidator
+    + createReservation(dto) : ReservationVO
+    + createBatch(dto) : BatchVO
+    - 固定预约事务(dto) : ReservationVO
+    - 可调度需求事务(dto) : ReservationVO
+  }
+  interface SeatService {
+    + 查询可用工位(申请) : List
+    + 正式分配工位(申请) : List
+    + 释放工位(resvId, 剩余掩码) : void
+  }
+  class SeatServiceImpl {
+    - seatAllocator : SeatAllocator
+    + 正式分配工位(申请) : List
+    + 释放工位(resvId, 剩余掩码) : void
+  }
+  class AuthService {
+    + 微信登录(临时凭证) : Token
+    + 绑定微信(临时凭证, 学号, 密码) : Token
+    + 验证密码(学号, 密码) : Result
+    + 验证终端(终端会话) : Result
+  }
+  class CheckinService {
+    + 扫码签到(dto) : Result
+    + 终端账号签到(dto) : Result
+    + 签退(resvId) : Result
+    - 校验预约与时间窗(用户, 实验室, 预约) : Result
+    - 生成短期选择凭证(预约列表) : Token
+  }
+  class ResourceService {
+    + saveLab(dto) : Long
+    + saveSeat(dto) : Long
+    + saveTimeRule(dto) : Long
+    + saveTerminal(dto) : Long
+  }
+  interface ScheduleService {
+    + 执行到期排期() : void
+    + 执行任务(taskId) : void
+    + 发布主方案(taskId) : void
+    + 查询结果(taskId) : List
+  }
+  class ScheduleServiceImpl {
+    - scheduleEngine : ScheduleEngine
+    + 执行到期排期() : void
+    + 执行任务(taskId) : void
+    + 发布主方案(taskId) : void
+    - 自动重检与占位事务(taskId) : void
+  }
+  class CreditService {
+    + 扣分(userId, violationId) : int
+    + 恢复(userId, violationId) : int
+    + 提交申诉(dto) : Long
+    + 核定申诉(appealId, opinion) : void
+  }
+  class StatService {
+    + usageRecords(query) : List
+    + heatmap(labId, range) : Map
+    + export(range) : File
+  }
+  class ExperimentService {
+    + run(dto) : void
+    + compare(batchNo) : List
+  }
+}
+
+package "独立 AI 服务（FastAPI / LangChain）" {
+  class ChatController {
+    + invoke(dto) : Result
+    + stream(dto) : SSE
+    + history(userId, threadId) : Result
+  }
+  class AgentService {
+    + 问答(userId, threadId, message) : Answer
+    + 流式问答(userId, threadId, message) : AsyncIterator
+    + 生成预约草稿(消息, 工具事实) : ReservationDraft
+    - 校验输出(模型结果) : Result
+  }
+  class ChatModelFactory {
+    + 创建模型(模型配置) : BaseChatModel
+  }
+  class ReadOnlyToolClient {
+    + 查询预约规则(实验室ID) : Result
+    + 查询空闲情况(实验室ID, 日期, 粒度) : Result
+    + 查询本人预约(userId, 状态) : Result
+  }
+  class ChatHistoryRepository {
+    + 加载(userId, threadId) : List
+    + 追加(userId, threadId, 消息) : void
+    + 裁剪并设置过期(userId, threadId) : void
+  }
+  class AuthGateway {
+    + 验证业务令牌(token) : UserContext
+  }
+}
+
+ReservationController --> ReservationService
+AuthController --> AuthService
+CheckinController --> CheckinService
+ResourceController --> ResourceService
+ScheduleQueryController --> ScheduleService
+CreditController --> CreditService
+StatController --> StatService
+ExperimentController --> ExperimentService
+
+ReservationServiceImpl ..|> ReservationService
+SeatServiceImpl ..|> SeatService
+ScheduleServiceImpl ..|> ScheduleService
+
+ReservationServiceImpl --> ConflictDetector
+ReservationServiceImpl --> LockManager
+ReservationServiceImpl --> RuleValidator
+ReservationServiceImpl --> ReservationMapper
+ReservationServiceImpl --> ReservationBatchMapper
+ReservationServiceImpl --> BitmapDao
+ReservationServiceImpl --> SeatService
+SeatServiceImpl --> SeatAllocator
+SeatServiceImpl --> SeatMapper
+SeatServiceImpl --> SeatBitmapMapper
+AuthService --> UserMapper
+AuthService --> WeChatGateway
+AuthService --> DeviceMapper
+CheckinService --> AuthService
+CheckinService --> ReservationMapper
+CheckinService --> LockManager
+ScheduleServiceImpl --> ScheduleEngine
+ScheduleServiceImpl --> SeatService
+ScheduleServiceImpl --> ScheduleTaskMapper
+ScheduleServiceImpl --> ScheduleResultMapper
+ScheduleServiceImpl --> ReservationMapper
+CreditService --> CreditRecordMapper
+CreditService --> AppealMapper
+ExperimentService --> ScheduleEngine
+ExperimentService --> Evaluator
+
+IntervalConflictDetector ..|> ConflictDetector
+BitmapConflictDetector ..|> ConflictDetector
+GreedySeatAllocator ..|> SeatAllocator
+FcfsEngine ..|> ScheduleEngine
+GreedyEngine ..|> ScheduleEngine
+GeneticEngine ..|> ScheduleEngine
+ScheduleEngine --> FitnessEvaluator
+
+ChatController --> AgentService
+AgentService --> ChatModelFactory
+AgentService --> ReadOnlyToolClient
+AgentService --> ChatHistoryRepository
+AgentService --> AuthGateway
+ReadOnlyToolClient ..> ReservationService : 内部只读 REST
+ReadOnlyToolClient ..> ResourceService : 内部只读 REST
+
+note bottom of BitmapConflictDetector
+  整室：Q AND (R OR 全部 S[i])
+  工位：先查 Q AND R，再逐工位查 Q AND S[i]
+  单个 48 位掩码运算 O(1)，全工位扫描 O(m)。
+end note
+
+note bottom of CheckinService
+  小程序扫码与电脑账号签到共用预约和时间窗校验。
+  身份、渠道、本人预约、实验室必须同时匹配。
+end note
+
+note bottom of AgentService
+  Agent 只调用白名单只读工具，不直连 MySQL。
+  预约草稿经 Pydantic 校验与用户确认后，
+  通过 Spring Boot 原预约接口提交。
+end note
+@enduml

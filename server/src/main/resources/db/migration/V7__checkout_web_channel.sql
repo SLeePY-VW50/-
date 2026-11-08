@@ -1,0 +1,2 @@
+ALTER TABLE t_reservation
+    MODIFY COLUMN checkout_channel ENUM('WECHAT_QR', 'TERMINAL_ACCOUNT', 'WEB_ACCOUNT') NULL;

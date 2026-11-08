@@ -1,0 +1,98 @@
+@startuml
+!include ../_style.inc.puml
+title 图4-7 系统部署图（业务核心、智能助手与签到终端）
+
+skinparam linetype ortho
+skinparam nodesep 38
+skinparam ranksep 55
+
+node "学生手机" as C1 {
+  artifact "微信原生小程序\n预约 / 签到 / 智能助手 invoke" as MP
+}
+
+node "教师 / 系统管理员电脑" as C2 {
+  artifact "Vue3 Web\n预约与系统管理 / 智能助手 SSE" as FE
+}
+
+node "实验室签到电脑" as C3 {
+  artifact "签到专用页面\n学号 + 密码认证" as CT
+}
+
+node "实验室管理员电脑\n（只读）" as C4 {
+  artifact "使用情况与统计页面" as RO
+}
+
+node "应用服务器\nWindows Server 2022 / Linux" as APP {
+  node "JDK 21 + Spring Boot 3.x" as SB {
+    artifact "reservation-api\n(:8080 预约与签到短事务)" as A1
+    artifact "schedule-worker\n(:8081 排期计算)" as A2
+  }
+  node "Python 3.12" as PY {
+    artifact "ai-service\nFastAPI + Uvicorn (:8000)\nAgent / 只读工具 / 会话管理" as AI
+  }
+  node "Nginx 1.24（目标版本）" as NG {
+    artifact "静态资源托管\n+ HTTPS 反向代理" as A3
+  }
+  database "MySQL 8.0（目标版本）\n(:3306)" as DB {
+    artifact "lab_reservation\n事务 / 行锁 / 唯一约束" as D1
+  }
+  database "Redis 7.x（目标版本）\n(:6379)" as REDIS {
+    artifact "实验室日期锁 / 失败限次\n短期签到凭证 / AI 对话记忆" as R1
+  }
+}
+
+node "定时任务容器" as CRON {
+  artifact "Spring @Scheduled\n自动排期发布 / 爽约 / 到时结束 / 日统计" as JOB
+}
+
+node "监控与运维" as MON {
+  artifact "日志文件\nlogback + 脱敏" as LOG
+  artifact "备份与恢复演练\nmysqldump" as BK
+}
+
+node "大模型平台\n（OpenAI 兼容 HTTPS API）" as LLM {
+  artifact "可配置模型服务" as MODEL
+}
+
+MP --> NG : HTTPS 443
+FE --> NG : HTTPS 443
+CT --> NG : HTTPS 443 + 终端会话
+RO --> NG : HTTPS 443（只读接口）
+NG --> SB : /api/**（业务接口）
+NG --> AI : /api/ai/**（仅内网转发）
+A1 --> DB : JDBC / HikariCP
+A1 --> REDIS : Lettuce
+A2 --> DB : 候选结果与实验记录
+A2 --> REDIS : 任务进度
+AI --> A1 : 身份验证 + 白名单只读 REST
+AI --> REDIS : ai:chat:*（TTL / 消息裁剪）
+AI --> MODEL : invoke / stream（HTTPS）
+JOB --> DB : 条件状态迁移
+JOB --> REDIS : 实验室日期锁
+SB --> LOG : 输出运行日志
+PY --> LOG : 脱敏运行日志与 token 用量
+BK --> DB : 每日 02:00 全量备份
+
+note right of A2
+  排期 Worker 独立执行长耗时计算。
+  主任务合格方案由定时任务自动重检发布，
+  对照任务只保存实验数据，不占资源。
+end note
+
+note right of AI
+  AI 服务不直连 MySQL，不直接写预约。
+  草稿由用户确认后进入 Spring Boot 原预约接口。
+  模型 API Key 仅通过服务端环境变量配置。
+end note
+
+note bottom of CT
+  终端与实验室绑定，终端密钥仅保存哈希。
+  学生签到不建立完整个人中心会话；
+  密码不写日志，成功或超时后清除短期凭证。
+end note
+
+note bottom of BK
+  设计目标：RPO 不超过 24 小时，RTO 不超过 4 小时。
+  备份文件异地或离线保存，并定期执行恢复演练。
+end note
+@enduml

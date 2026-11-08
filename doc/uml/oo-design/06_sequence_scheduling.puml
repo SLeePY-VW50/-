@@ -1,0 +1,80 @@
+@startuml
+!include ../_style.inc.puml
+!pragma layout smetana
+title 图4-3 批量排期顺序图（两阶段与主方案自动发布）
+
+skinparam maxMessageSize 175
+skinparam ParticipantPadding 9
+skinparam BoxPadding 7
+
+actor "定时排期任务" as cron
+actor "实验室管理员\n（只读）" as admin
+participant "ScheduleServiceImpl" as svc
+participant "ScheduleEngine\n(FCFS/Greedy/Genetic)" as engine
+participant "FitnessEvaluator" as fit
+participant "SeatAllocator" as seat
+participant "Evaluator" as ev
+participant "ConflictDetector" as det
+participant "LockManager" as lock
+participant "ScheduleResultMapper" as mapper
+participant "ScheduleQueryController" as query
+database "MySQL" as db
+
+cron -> svc : 执行到期排期()
+svc -> db : 读取 SCHEDULABLE 需求与固定占用
+svc -> db : 保存共享数据集与资源快照\n对三套算法分别 INSERT 任务，标记 is_primary
+svc -> db : 按配置读取主算法与运行参数
+
+loop 批次内每个算法任务
+  svc -> engine : 排期(需求, 资源快照, 参数)
+  opt 遗传算法任务
+    engine -> fit : 逐染色体增量评估第一阶段适应度
+    fit --> engine : 预计分配成功率 + 预计资源利用率\n- 时间碎片率 - 约束违反惩罚
+    engine -> engine : 锦标赛选择 + 交叉 + 变异 + 精英保留
+  end
+  engine --> svc : 第一阶段候选结果
+  svc -> seat : 第二阶段：统一工位落座与方案校验
+  seat --> svc : 具体工位、软偏好满足情况、未解决失败
+  svc -> ev : 评价最终候选方案与任务耗时
+  ev --> svc : 五项指标与两阶段耗时
+  svc -> mapper : batchInsert(候选结果，不占位)
+  mapper -> db : INSERT t_schedule_result
+  svc -> db : INSERT t_algorithm_experiment(task_id 唯一)\nUPDATE 当前任务状态与进度
+end
+
+svc -> db : 读取主任务及其候选结果
+alt 主任务无合格方案
+  svc -> db : 记录失败原因，相关需求保持待排期
+  svc --> cron : 本批结束，等待后续批次
+else 主任务具备合格方案
+  svc -> lock : 按 labId、date 顺序获取全部实验室日期锁
+  svc -> db : BEGIN，按序锁定整室日位图行
+  svc -> det : 以最新占用重检主方案并复核落座
+  det --> svc : 双向检测结果
+  alt 快照过期、冲突或落座失败
+    svc -> db : ROLLBACK，记录原因，需求保持待排期
+    svc --> cron : 本批发布失败，等待后续批次
+  else 全部通过
+    svc -> db : 标记主结果已发布 + 更新预约为已通过\n写正式座位分配 + 位图 + 状态日志
+    svc -> db : COMMIT
+    svc --> cron : 主方案发布成功
+  end
+  svc -> lock : finally：释放全部锁
+end
+
+admin -> query : 查看任务、指标或分配结果
+query -> svc : 只读查询(taskId / batchNo)
+svc -> db : SELECT 任务、实验指标与结果明细
+svc --> query : 查询结果
+query --> admin : 展示，无修改或发布入口
+
+note over engine,fit
+  遗传算法示例参数：种群 80、迭代 200 代。
+  三套算法共享快照，每个任务有独立 task_id。
+end note
+
+note over mapper,db
+  对照任务只保存候选结果和实验指标，不占资源。
+  只有 is_primary=true 且第二阶段合格的任务可自动发布。
+end note
+@enduml

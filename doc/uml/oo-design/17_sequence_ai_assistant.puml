@@ -1,0 +1,94 @@
+@startuml
+!include ../_style.inc.puml
+!pragma layout smetana
+title 图4-14 智能预约助手顺序图（只读工具与草稿确认）
+
+skinparam maxMessageSize 175
+skinparam ParticipantPadding 8
+skinparam BoxPadding 7
+
+actor "学生" as stu
+participant "微信小程序 / Web" as web
+participant "Nginx" as ng
+participant "ChatController\n(FastAPI)" as chat
+participant "AuthGateway\n(FastAPI)" as auth
+participant "AgentService\n(LangChain)" as agent
+participant "ReadOnlyToolClient" as tools
+participant "只读业务 API\n(Spring Boot)" as api
+participant "ChatModel" as llm
+database "Redis\n短期对话记忆" as redis
+participant "ReservationController\n(Spring Boot)" as reservation
+
+stu -> web : 输入问题与 threadId
+web -> ng : POST /api/ai/chat/invoke 或 /stream
+ng -> chat : 仅转发 /api/ai/**
+chat -> auth : 验证业务令牌
+auth -> api : 校验令牌与调用方身份
+api --> auth : 返回验证结果与用户范围
+alt 身份无效或无权访问
+  auth --> chat : 401 / 403
+  chat --> web : 拒绝请求，不调用模型
+else 身份有效
+  auth --> chat : userId + 角色
+  chat -> agent : 处理(userId, threadId, message, channel)
+  agent -> redis : 读取 ai:chat:{userId}:{threadId}\n校验归属并裁剪历史
+  redis --> agent : 有限消息列表
+  agent -> agent : 渲染系统提示词与白名单工具
+
+  opt 需要查询规则、空闲或本人预约
+    agent -> tools : 调用白名单只读工具(用户范围)
+    tools -> api : 内部 REST + 服务凭据 + userId
+    api --> tools : 脱敏规则 / 实时空闲 / 本人预约
+    tools --> agent : 工具事实与数据时间
+  end
+
+  agent -> llm : 消息历史 + 工具事实 + 提示词
+  llm --> agent : 自然语言回答或预约草稿
+  agent -> agent : Pydantic 校验回答与 ReservationDraft
+
+  alt 模型超时、限流或输出无效
+    llm --> agent : 异常 / 无效输出
+    agent --> chat : 降级结果
+    chat --> web : 回退完整回答或普通预约表单
+  else 输出有效
+    agent -> redis : 追加本次消息\n设置 TTL 与最大消息数
+    alt 返回预约草稿
+      agent --> chat : 结构化草稿 + 数据时间 + 核对提示
+      chat --> web : 返回草稿并回填普通预约表单
+      web --> stu : 展示实验室、时段、粒度与偏好
+      stu -> web : 检查并确认提交
+      web -> ng : POST /api/reservations\n沿用原业务令牌
+      ng -> reservation : 转发 /api/**（业务接口）
+      reservation -> reservation : 资格、双向冲突与事务校验
+      reservation --> ng : 预约成功或冲突原因
+      ng --> web : 返回业务结果
+      web --> stu : 展示最终业务结果
+    else 仅返回回答
+      alt 小程序 invoke
+        agent --> chat : 完整回答与引用信息
+        chat --> web : application/json
+      else Web SSE
+        agent --> chat : 流式回答片段
+        chat --> web : text/event-stream\n逐片输出，done 结束
+      end
+      web --> stu : 展示回答与“请核对”提示
+    end
+  end
+end
+
+note over agent,api
+  Agent 只有 get_reservation_rules、query_lab_availability、
+  query_my_reservations 三个只读工具。
+  不提供任意 SQL、创建/取消预约、签到或规则修改能力。
+end note
+
+note over chat,redis
+  历史必须同时匹配 userId 与 threadId。
+  模型不可用不影响普通预约和签到。
+end note
+
+note over reservation
+  草稿只是表单输入，不是业务事实。
+  只有 Spring Boot 原预约接口可以写入预约与位图。
+end note
+@enduml

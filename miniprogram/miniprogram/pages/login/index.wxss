@@ -1,0 +1,15 @@
+.auth-page { padding-top: 15vh; }
+.auth-brand { display: flex; align-items: center; justify-content: center; gap: 18rpx; }
+.auth-brand__mark { display: grid; width: 72rpx; height: 72rpx; color: #fff; background: #3867e8; border-radius: 20rpx; place-items: center; font-weight: 800; }
+.auth-brand__name { font-size: 42rpx; font-weight: 750; }
+.auth-title { margin-top: 58rpx; font-size: 44rpx; font-weight: 700; text-align: center; }
+.auth-subtitle { margin: 16rpx 0 48rpx; text-align: center; }
+.development { margin-top: 36rpx; padding: 28rpx; }
+.development__title { font-weight: 650; }
+.development__note { margin: 8rpx 0 20rpx; font-size: 24rpx; }
+.auth-label { display: block; margin: 0 0 10rpx 4rpx; font-weight: 600; }
+.auth-input { height: 96rpx; margin-bottom: 18rpx; padding: 0 24rpx; background: #f8faff; border: 2rpx solid #e8edf4; border-radius: 16rpx; }
+.password-field { display: flex; align-items: flex-start; gap: 12rpx; }
+.password-field .auth-input { flex: 1; min-width: 0; }
+.password-toggle { width: 144rpx; padding: 0 12rpx; color: #3867e8; background: #fff; border: 2rpx solid #dfe5ee; border-radius: 16rpx; font-size: 26rpx; }
+.auth-page .button-primary, .auth-page .button-secondary, .password-toggle { min-height: 96rpx; line-height: 96rpx; }

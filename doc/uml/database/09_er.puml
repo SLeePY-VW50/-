@@ -1,0 +1,260 @@
+@startuml
+!include ../_style.inc.puml
+title 图4-6 数据库 E-R 图（23 个实体）
+
+skinparam linetype ortho
+skinparam nodesep 24
+skinparam ranksep 58
+hide circle
+skinparam classAttributeIconSize 0
+
+package "RBAC 权限域（5）" {
+  entity "sys_user 用户表" as T_USER {
+    * user_id : bigint <<PK>>
+    --
+    学工号 : varchar(32) <<UK>>
+    姓名 / 手机号 / 密码哈希
+    信用分 / 状态
+    微信openid : varchar(64) <<UK, 可空>>
+    微信绑定时间 : datetime
+  }
+  entity "sys_role 角色表" as T_ROLE {
+    * role_id : bigint <<PK>>
+    角色编码 : varchar(32) <<UK>>
+    角色名称 : varchar(64)
+  }
+  entity "sys_permission 权限表" as T_PERM {
+    * perm_id : bigint <<PK>>
+    权限编码 : varchar(64) <<UK>>
+    权限名称 : varchar(64)
+  }
+  entity "sys_user_role 用户角色表" as T_UR {
+    * id : bigint <<PK>>
+    # user_id / role_id : bigint <<FK>>
+    : UK(user_id, role_id)
+  }
+  entity "sys_role_permission 角色权限表" as T_RP {
+    * id : bigint <<PK>>
+    # role_id / perm_id : bigint <<FK>>
+    : UK(role_id, perm_id)
+  }
+}
+
+package "资源与规则域（7）" {
+  entity "t_lab 实验室表" as T_LAB {
+    * lab_id : bigint <<PK>>
+    实验室编号 : varchar(32) <<UK>>
+    名称 / 位置 / 容量 / 状态
+  }
+  entity "t_lab_seat 工位表" as T_SEAT {
+    * seat_id : bigint <<PK>>
+    # lab_id : bigint <<FK>>
+    工位编号 / 区域 / 室内序号
+    配置等级 / 是否靠窗 / 状态
+    : UK(lab_id, 工位编号)
+    : UK(lab_id, 室内序号)
+  }
+  entity "t_device 设备与签到终端表" as T_DEV {
+    * device_id : bigint <<PK>>
+    # lab_id : bigint <<FK>>
+    设备类型 : GENERAL / CHECKIN_TERMINAL
+    名称 / 型号 / 状态
+    终端编码 : varchar(64) <<UK, 可空>>
+    终端密钥哈希 : varchar(255)（可空）
+    : idx(lab_id, 设备类型, 状态)
+  }
+  entity "t_time_rule 开放规则表" as T_RULE {
+    * rule_id : bigint <<PK>>
+    # lab_id : bigint <<FK>>
+    生效星期 / 开始时间 / 结束时间
+    最短/最长时长 / 提前天数（可空覆盖）
+  }
+  entity "t_slot_bitmap 实验室日位图表" as T_BITMAP {
+    * bitmap_id : bigint <<PK>>
+    # lab_id : bigint <<FK>>
+    日期 : date
+    掩码 : bigint unsigned
+    版本号 : int
+    : UK(lab_id, 日期)
+  }
+  entity "t_seat_bitmap 工位日位图表" as T_SBITMAP {
+    * bitmap_id : bigint <<PK>>
+    # seat_id : bigint <<FK>>
+    日期 : date
+    掩码 : bigint unsigned
+    版本号 : int
+    : UK(seat_id, 日期)
+  }
+  entity "t_sys_config 规则配置表" as T_CFG {
+    * config_id : bigint <<PK>>
+    配置键 : varchar(64) <<UK>>
+    配置值 / 值类型 / 分组
+    说明 / 更新时间
+  }
+}
+
+package "预约与排期域（9）" {
+  entity "t_reservation_batch 预约批次表" as T_BATCH {
+    * batch_id : bigint <<PK>>
+    批次号 : varchar(32) <<UK>>
+    # user_id / lab_id : bigint <<FK>>
+    课程名称 / 公共用途 / 创建时间
+  }
+  entity "t_reservation 预约申请表" as T_RESV {
+    * resv_id : bigint <<PK>>
+    # batch_id : bigint <<FK, 可空>>
+    # user_id : bigint <<FK>>
+    # lab_id : bigint <<FK, 可空>>
+    分配模式 : FIXED / SCHEDULABLE
+    预约粒度 : ROOM / SEAT
+    开始时间 / 结束时间 : datetime
+    人数 / 用途 / 偏好 : json
+    签到时间 / 签退时间 / 签到渠道
+    状态 : tinyint
+    : idx(lab_id, 开始时间)
+    : idx(user_id, 状态)
+    : idx(状态, 开始时间)
+    : idx(batch_id)
+  }
+  entity "t_reservation_seat 正式工位分配表" as T_RSEAT {
+    * id : bigint <<PK>>
+    # resv_id / seat_id : bigint <<FK>>
+    时间掩码 : bigint unsigned
+    分配时间 / 分配方式
+    : UK(resv_id, seat_id)
+    : idx(seat_id, resv_id)
+  }
+  entity "t_reservation_log 状态日志表" as T_LOG {
+    * log_id : bigint <<PK>>
+    # resv_id : bigint <<FK>>
+    原状态 / 新状态 / 触发人 / 时间
+  }
+  entity "t_violation 违规记录表" as T_VIO {
+    * violation_id : bigint <<PK>>
+    # user_id / resv_id : bigint <<FK>>
+    类型 / 扣分 / 登记人 / 时间
+    状态 : 有效 / 已撤销
+  }
+  entity "t_credit_record 信用流水表" as T_CREDIT {
+    * record_id : bigint <<PK>>
+    # user_id : bigint <<FK>>
+    # violation_id : bigint <<FK, 可空>>
+    变动类型 / 变动分值
+    变动前后余额 / 操作人 / 时间
+    : idx(user_id, 时间)
+    : idx(violation_id)
+  }
+  entity "t_appeal 申诉表" as T_APPEAL {
+    * appeal_id : bigint <<PK>>
+    # violation_id : bigint <<FK, UK>>
+    # user_id : bigint <<FK>>
+    申诉理由 / 状态
+    核定人 / 核定意见 / 核定时间
+  }
+  entity "t_schedule_task 排期任务表" as T_TASK {
+    * task_id : bigint <<PK>>
+    排期批次号 / 算法类型 / 主任务标记
+    数据集编号 / 需求快照 / 资源快照 : json
+    参数 / 运行环境 : json
+    随机种子 / 重复序号
+    状态 / 进度 / 起止时间
+    : idx(排期批次号, 主任务标记)
+  }
+  entity "t_schedule_result 排期结果表" as T_RESULT {
+    * result_id : bigint <<PK>>
+    # task_id / resv_id : bigint <<FK>>
+    # assigned_lab_id : bigint <<FK>>
+    分配起止时间 / 目标函数值
+    候选工位分配 : json
+    发布标记 / 发布时间
+    : UK(task_id, resv_id)
+    : idx(task_id, 发布标记)
+  }
+}
+
+package "统计与实验域（2）" {
+  entity "t_algorithm_experiment 算法实验表" as T_EXP {
+    * exp_id : bigint <<PK>>
+    # task_id : bigint <<FK, UK>>
+    算法类型 / 数据规模
+    分配成功率 / 平均工位利用率
+    工位偏好错配率 / 时间碎片率
+    第一阶段耗时 / 第二阶段耗时 / 总耗时
+    : idx(算法类型, 数据规模)
+  }
+  entity "t_stat_daily 日统计表" as T_STAT {
+    * metric_id : bigint <<PK>>
+    # lab_id : bigint <<FK>>
+    统计日期 / 计划利用率 / 实际利用率
+    爽约率 / 预约量
+    : UK(lab_id, 统计日期)
+  }
+}
+
+T_USER ||--o{ T_UR
+T_ROLE ||--o{ T_UR
+T_ROLE ||--o{ T_RP
+T_PERM ||--o{ T_RP
+
+T_LAB ||--o{ T_SEAT
+T_LAB ||--o{ T_DEV
+T_LAB ||--o{ T_RULE
+T_LAB ||--o{ T_BITMAP
+T_SEAT ||--o{ T_SBITMAP
+
+T_USER ||--o{ T_BATCH
+T_LAB ||--o{ T_BATCH
+T_BATCH |o--o{ T_RESV
+T_USER ||--o{ T_RESV
+T_LAB |o--o{ T_RESV
+T_RESV ||--o{ T_RSEAT
+T_SEAT ||--o{ T_RSEAT
+T_RESV ||--o{ T_LOG
+T_RESV ||--o{ T_VIO
+T_USER ||--o{ T_VIO
+T_USER ||--o{ T_CREDIT
+T_VIO |o--o{ T_CREDIT
+T_VIO ||--o| T_APPEAL
+T_USER ||--o{ T_APPEAL
+
+T_TASK ||--o{ T_RESULT
+T_RESV ||--o{ T_RESULT
+T_LAB ||--o{ T_RESULT
+T_TASK ||--o| T_EXP
+T_LAB ||--o{ T_STAT
+
+note bottom of T_BITMAP
+  整室日位图：低 48 位表示 30 分钟时间片。
+  无行等于零掩码；该行也是数据库行锁锚点。
+  整室申请检查整室与全部工位掩码并集。
+end note
+
+note bottom of T_SBITMAP
+  工位日位图：每工位每日期一行，无行等于零掩码。
+  工位申请先查整室，再逐工位检测。
+  单个 48 位掩码运算 O(1)，全工位扫描 O(m)。
+end note
+
+note bottom of T_TASK
+  三套算法各自任务共享需求与资源快照。
+  主任务标记由配置决定，只有主任务合格方案自动发布。
+  对照任务只保存候选结果与实验指标，不占资源。
+end note
+
+note bottom of T_USER
+  openid 可空唯一，一个微信身份只绑定一个学号账号。
+  密码只保存安全哈希；AppSecret 不写入本表或规则配置表。
+end note
+
+note bottom of T_DEV
+  CHECKIN_TERMINAL 与实验室绑定。
+  终端密钥仅保存哈希，签到时还需验证终端有效状态。
+end note
+
+note bottom of T_CFG
+  非敏感 AI 配置包括 provider、model、temperature、timeout、
+  历史 TTL、最大消息数和 CORS 白名单。
+  模型 API Key 使用服务端环境变量，不写入本表。
+  AI 对话按 userId + threadId 存于 Redis，不新增 MySQL 对话表。
+end note
+@enduml

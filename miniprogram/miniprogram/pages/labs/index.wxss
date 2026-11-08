@@ -1,0 +1,15 @@
+.page-title { font-size: 40rpx; font-weight: 700; }
+.page-subtitle { margin: 10rpx 0 28rpx; }
+.picker-card { display: flex; min-height: 96rpx; padding: 24rpx 28rpx; align-items: center; justify-content: space-between; }
+.filters { display: flex; align-items: center; justify-content: space-between; margin: 20rpx 0; padding: 20rpx; }
+.filter-value { display: flex; min-height: 96rpx; color: #3867e8; align-items: center; }
+.filter-label { margin-right: 16rpx; color: #53627a; }
+.segment { display: flex; padding: 6rpx; background: #e9edf4; border-radius: 14rpx; }
+.segment text { display: flex; min-width: 96rpx; min-height: 96rpx; padding: 12rpx 24rpx; color: #77849a; align-items: center; justify-content: center; }
+.segment .active { color: #3867e8; background: #fff; border-radius: 10rpx; font-weight: 700; }
+.availability { padding: 24rpx; }
+.availability__head { display: flex; justify-content: space-between; margin-bottom: 20rpx; font-size: 26rpx; }
+.rule-note { margin-top: 24rpx; font-size: 23rpx; line-height: 1.7; }
+.selection-bar { position: sticky; bottom: 20rpx; display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding: 20rpx 24rpx; background: #fff; border-radius: 20rpx; box-shadow: 0 12rpx 32rpx rgb(32 55 96 / 12%); }
+.selection-bar .button-primary { min-height: 96rpx; margin: 0; padding: 0 28rpx; line-height: 96rpx; }
+.retry { display: inline-flex; min-width: 96rpx; min-height: 96rpx; margin-left: 16rpx; align-items: center; justify-content: center; text-decoration: underline; }

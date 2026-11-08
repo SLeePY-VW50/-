@@ -1,0 +1,25 @@
+<view class="page">
+  <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">
+    <text>{{error}}</text>
+    <button class="retry" aria-label="重试加载预约详情" bindtap="load">重试</button>
+  </view>
+  <view wx:if="{{loading && !detail}}" class="loading" aria-live="polite">正在读取预约详情</view>
+  <view wx:if="{{detail}}" class="card detail">
+    <view class="detail__head">
+      <text>{{detail.labName || '待排期分配'}}</text>
+      <text class="status status--{{detail.status}}">{{statusText}}</text>
+    </view>
+    <view class="detail-row"><text>正式时段</text><text>{{timeText}}</text></view>
+    <view class="detail-row"><text>预约方式</text><text>{{labels[detail.allocationMode]}} · {{labels[detail.reservationMode]}}</text></view>
+    <view class="detail-row"><text>人数 / 工位</text><text>{{detail.attendeeCount}} / {{detail.seatCount || '—'}}</text></view>
+    <view class="detail-row"><text>正式座位</text><text>{{seatText || '尚未分配'}}</text></view>
+    <view class="detail-row"><text>用途</text><text>{{detail.purpose}}</text></view>
+    <view class="detail-row"><text>签到</text><text>{{checkinText}}</text></view>
+    <view class="detail-row"><text>签退</text><text>{{checkoutText}}</text></view>
+  </view>
+  <view wx:if="{{detail}}" class="actions">
+    <button wx:if="{{canScan}}" class="button-primary" disabled="{{actionLoading}}" bindtap="scan">扫码签到</button>
+    <button wx:if="{{canCheckout}}" class="button-primary" disabled="{{actionLoading}}" bindtap="checkout">提前签退</button>
+    <button wx:if="{{canCancel}}" class="button-secondary" disabled="{{actionLoading}}" bindtap="cancel">取消预约</button>
+  </view>
+</view>

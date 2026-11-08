@@ -1,0 +1,13 @@
+<view class="page auth-page">
+  <view class="auth-title">绑定校园账号</view>
+  <view class="muted auth-subtitle">首次使用需验证学号与密码，绑定凭证 5 分钟内有效</view>
+  <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">{{error}}</view>
+  <label class="auth-label" for="bind-account">学号</label>
+  <input id="bind-account" class="auth-input" placeholder="请输入学号" value="{{account}}" bindinput="onAccount" />
+  <label class="auth-label" for="bind-password">密码</label>
+  <view class="password-field">
+    <input id="bind-password" class="auth-input" password="{{!showPassword}}" placeholder="请输入密码" value="{{password}}" bindinput="onPassword" />
+    <button class="password-toggle" aria-label="{{showPassword ? '隐藏密码' : '显示密码'}}" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</button>
+  </view>
+  <button class="button-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="bind">验证并绑定</button>
+</view>

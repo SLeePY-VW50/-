@@ -1,0 +1,14 @@
+{
+  "name": "campus-lab-miniprogram",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "5.3.1",
+    "typescript": "5.7.2",
+    "vitest": "3.2.7"
+  }
+}

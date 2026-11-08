@@ -1,0 +1,20 @@
+<view class="page">
+  <view class="page-title">我的预约</view>
+  <view class="filters" aria-label="预约状态筛选">
+    <text wx:for="{{filters}}" wx:key="value" class="filter {{status === item.value ? 'active' : ''}}" aria-selected="{{status === item.value}}" data-value="{{item.value}}" bindtap="onFilter">{{item.label}}</text>
+  </view>
+  <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">
+    <text>{{error}}</text>
+    <text class="retry" aria-label="重试加载预约记录" bindtap="reload">重试</text>
+  </view>
+  <view wx:if="{{!items.length && !loading && !error}}" class="empty">没有符合条件的预约</view>
+  <view wx:for="{{items}}" wx:key="resvId" class="card reservation" aria-role="button" aria-label="查看{{item.labName || '待排期分配'}}预约详情" data-id="{{item.resvId}}" bindtap="open">
+    <view class="reservation__top">
+      <text class="reservation__lab">{{item.labName || '待排期分配'}}</text>
+      <text class="status status--{{item.status}}">{{item.statusText}}</text>
+    </view>
+    <view class="reservation__time">{{item.timeText}}</view>
+    <view class="muted reservation__meta">{{labels[item.reservationMode]}} · {{item.attendeeCount}} 人<text wx:if="{{item.seats.length}}"> · {{item.seats[0].seatCode}}{{item.seats.length > 1 ? ' 等' : ''}}</text></view>
+  </view>
+  <view wx:if="{{loading}}" class="loading" aria-live="polite">正在加载预约记录</view>
+</view>

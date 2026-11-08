@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "实验室",
+  "usingComponents": {
+    "slot-grid": "/components/slot-grid/index"
+  }
+}

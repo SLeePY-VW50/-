@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: ${LAB_DB_URL}
+    username: ${LAB_DB_USERNAME}
+    password: ${LAB_DB_PASSWORD}
+  data:
+    redis:
+      password: ${LAB_REDIS_PASSWORD:}
+
+app:
+  wechat:
+    app-id: ${WECHAT_APP_ID:}
+    app-secret: ${WECHAT_APP_SECRET:}
+    checkin-qr-secret: ${WECHAT_CHECKIN_QR_SECRET:}
+  jwt:
+    secret: ${LAB_JWT_SECRET}
+  internal-token: ${AI_INTERNAL_TOKEN}
+  checkin:
+    terminal:
+      cookie:
+        secure: true
+  reservation:
+    jobs:
+      enabled: true
+  schedule:
+    worker:
+      enabled: true
+  statistics:
+    jobs:
+      enabled: true
+  experiment:
+    recovery:
+      enabled: true
