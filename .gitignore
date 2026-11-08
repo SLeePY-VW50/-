@@ -27,3 +27,10 @@ tools/
 /~$*
 /*.doc
 /*.docx
+
+# Local writing and progress notes
+/开题报告_正文.md
+/毕业设计定题说明.md
+/系统使用说明.md
+/选题参考清单.md
+/项目搭建进度.md
