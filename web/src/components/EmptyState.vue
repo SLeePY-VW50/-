@@ -12,10 +12,13 @@ defineProps<{ title?: string; description?: string }>()
 </template>
 
 <style scoped>
-.empty-state { display: grid; justify-items: center; gap: 10px; padding: 42px 22px; color: var(--muted); background: #fafbfc; border: 1px dashed #d9dfe9; border-radius: 12px; text-align: center; }
-.empty-state__mark { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; width: 40px; height: 40px; margin-bottom: 3px; padding: 9px; background: #eaf0ff; border-radius: 11px; }
-.empty-state__mark i { background: #6d8df5; border-radius: 2px; opacity: .75; }
-.empty-state__mark i:nth-child(2), .empty-state__mark i:nth-child(3) { opacity: .25; }
-.empty-state strong { color: #475467; font-size: 14px; font-weight: 650; }
-.empty-state p { max-width: 480px; margin: 0; font-size: 12px; line-height: 1.75; text-wrap: pretty; }
+.empty-state { display: grid; justify-items: center; gap: 8px; padding: 36px 20px; color: var(--muted); background: #f7f4ee; border: 1px dashed var(--line); border-radius: 8px; text-align: center; }
+.empty-state__mark { display: grid; grid-template-columns: repeat(4, 6px); gap: 3px; align-items: end; height: 22px; margin-bottom: 4px; }
+.empty-state__mark i { background: #d9d3c8; border-radius: 1px; }
+.empty-state__mark i:nth-child(1) { height: 8px; }
+.empty-state__mark i:nth-child(2) { height: 16px; background: var(--primary); }
+.empty-state__mark i:nth-child(3) { height: 12px; background: #9dbaae; }
+.empty-state__mark i:nth-child(4) { height: 6px; }
+.empty-state strong { color: var(--ink); font-size: 14px; font-weight: 600; }
+.empty-state p { max-width: 460px; margin: 0; font-size: 13px; line-height: 1.65; text-wrap: pretty; }
 </style>

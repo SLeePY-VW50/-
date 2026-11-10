@@ -64,7 +64,7 @@ onMounted(loadLabs)
 
 <template>
   <div class="page">
-    <header class="page-header"><div><span class="eyebrow">48 SLOTS / LIVE AVAILABILITY</span><h1>实验室与工位时间尺</h1><p>选择日期与实验室，查看真实开放规则和每30分钟的占用情况。</p></div><button v-if="canReserve && labs.length" class="button button--primary" @click="showForm = true">新建预约</button></header>
+    <header class="page-header"><div><span class="eyebrow">实时占用 · 30 分钟一格</span><h1>实验室与工位时间尺</h1><p>选择日期与实验室，查看真实开放规则和每30分钟的占用情况。</p></div><button v-if="canReserve && labs.length" class="button button--primary" type="button" @click="showForm = true">新建预约</button></header>
     <div v-if="success" class="success-banner" role="status">{{ success }}</div>
     <div v-if="error" class="error-banner" role="alert">{{ error }} <button class="button button--small" @click="selectedLabId ? loadAvailability() : loadLabs()">重试</button></div>
     <section class="panel">
@@ -75,11 +75,17 @@ onMounted(loadLabs)
         <span v-if="selectedLab" class="tag" :class="selectedLab.status === 'ACTIVE' ? 'tag--green' : 'tag--amber'">{{ statusLabels[selectedLab.status] }}</span>
       </div>
       <div v-if="loading" class="loading-line">正在读取开放规则与占用位图</div>
-      <EmptyState v-else-if="!labs.length" title="暂无实验室" description="实验室资源尚未配置。" />
+      <EmptyState v-else-if="!error && !labs.length" title="暂无实验室" description="实验室资源尚未配置。" />
       <template v-else-if="availability && selectedLab">
         <div class="lab-summary"><div><strong>{{ selectedLab.name }}</strong><span>{{ selectedLab.location }} · 容量 {{ selectedLab.capacity }}</span></div><div class="lab-summary__rule"><span>当日开放</span><strong class="mono">{{ dayRule ? `${openTime}–${closeTime}` : '未开放' }}</strong></div></div>
         <SlotGrid v-model="selection" :slots="availability.slots" :mode="gridMode" :disabled="availability.labStatus !== 'ACTIVE' || !dayRule" :open-time="openTime" :close-time="closeTime" />
-        <div v-if="selection && canReserve" class="selection-action"><span>已选 <strong class="mono">{{ availability.slots[selection.start]?.start }}–{{ availability.slots[selection.end]?.end }}</strong>，共 {{ selection.end - selection.start + 1 }} 个时间片。</span><button class="button button--primary button--small" @click="showForm = true">按此时段预约</button></div>
+        <div v-if="selection && canReserve" class="selection-action" role="status">
+          <div class="selection-action__copy">
+            <strong>已选时段，可直接预约</strong>
+            <span>已选 <strong class="mono">{{ availability.slots[selection.start]?.start }}–{{ availability.slots[selection.end]?.end }}</strong>，共 {{ selection.end - selection.start + 1 }} 个时间片。</span>
+          </div>
+          <button class="button button--primary" type="button" @click="showForm = true">按此时段预约</button>
+        </div>
       </template>
     </section>
     <div v-if="rules || availability" class="split-layout lab-details">
@@ -93,13 +99,16 @@ onMounted(loadLabs)
 </template>
 
 <style scoped>
-.lab-summary { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 19px; padding: 16px 18px; background: #f8f9fc; border: 1px solid #edf0f5; border-radius: 12px; }
+.lab-summary { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 16px; padding: 14px 16px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 6px; }
 .lab-summary strong, .lab-summary span { display: block; }
 .lab-summary strong { font-size: 15px; }
 .lab-summary span { margin-top: 5px; color: var(--muted); font-size: 12px; }
 .lab-summary__rule { text-align: right; }
 .lab-summary__rule strong { margin-top: 5px; color: var(--green); }
-.selection-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 17px; padding: 14px 15px; color: #3867e8; background: #f5f8ff; border: 1px solid #e0e9ff; border-radius: 12px; font-size: 13px; }
+.selection-action { position: sticky; bottom: 16px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 12px 14px; color: var(--ink); background: var(--primary-soft); border: 1px solid #c9e3d8; border-radius: 6px; font-size: 13px; }
+.selection-action__copy { display: grid; gap: 4px; min-width: 0; }
+.selection-action__copy > strong { color: var(--primary); font-size: 13px; }
+.selection-action__copy > span { color: var(--muted); font-size: 12px; }
 .lab-details { grid-template-columns: minmax(260px, .65fr) minmax(0, 1.35fr); }
-@media (max-width: 640px) { .lab-summary, .selection-action { align-items: flex-start; flex-direction: column; } .lab-summary__rule { text-align: left; } }
+@media (max-width: 640px) { .lab-summary, .selection-action { align-items: stretch; flex-direction: column; } .lab-summary__rule { text-align: left; } .selection-action .button { width: 100%; } }
 </style>

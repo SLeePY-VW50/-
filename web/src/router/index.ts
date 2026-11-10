@@ -50,7 +50,7 @@ router.beforeEach((to) => {
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} · 校园实验室` : '校园实验室预约平台'
+  document.title = to.meta.title ? `${to.meta.title} · LabSpace` : 'LabSpace 校园实验室预约平台'
 })
 
 export default router
