@@ -1,10 +1,10 @@
 .detail { padding: 30rpx; }
 .detail__head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; font-weight: 650; }
-.detail-row { display: flex; min-height: 96rpx; padding: 20rpx 0; align-items: center; justify-content: space-between; gap: 28rpx; border-bottom: 2rpx solid #edf0f5; }
+.detail-row { display: flex; min-height: 96rpx; padding: 20rpx 0; align-items: center; justify-content: space-between; gap: 28rpx; border-bottom: 2rpx solid #e4e0d8; }
 .detail-row text:last-child { text-align: right; }
-.status { flex-shrink: 0; padding: 8rpx 16rpx; color: #627089; background: #f1f3f6; border-radius: 30rpx; font-size: 21rpx; }
-.status--PENDING_SCHEDULE { color: #93620c; background: #fff7df; }
-.status--APPROVED, .status--IN_USE { color: #108260; background: #eaf8f2; }
-.status--NO_SHOW, .status--VIOLATION_TERMINATED { color: #c65361; background: #fff0f1; }
+.status { flex-shrink: 0; padding: 8rpx 16rpx; color: #4a524e; background: #efece6; border-radius: 8rpx; font-size: 21rpx; }
+.status--PENDING_SCHEDULE { color: #8a5a12; background: #fff4e4; }
+.status--APPROVED, .status--IN_USE { color: #185546; background: #e7f3ee; }
+.status--NO_SHOW, .status--VIOLATION_TERMINATED { color: #9a3a30; background: #fdecea; }
 .actions { margin-top: 24rpx; }
 .actions button { min-height: 96rpx; margin-bottom: 16rpx; line-height: 96rpx; }

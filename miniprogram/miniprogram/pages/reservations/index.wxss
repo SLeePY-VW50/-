@@ -1,7 +1,7 @@
 .page-title { margin-bottom: 24rpx; font-size: 40rpx; font-weight: 700; }
 .filters { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 24rpx; }
-.filter { display: flex; flex: 1; min-width: 96rpx; min-height: 96rpx; padding: 12rpx 16rpx; color: #77849a; align-items: center; justify-content: center; }
-.filter.active { color: #3867e8; border-bottom: 4rpx solid #3867e8; font-weight: 700; }
+.filter { display: flex; flex: 1; min-width: 96rpx; min-height: 96rpx; padding: 12rpx 16rpx; color: #656d67; align-items: center; justify-content: center; }
+.filter.active { color: #1f6b57; border-bottom: 4rpx solid #1f6b57; font-weight: 700; }
 .error { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
 .retry { display: inline-flex; flex-shrink: 0; min-width: 96rpx; min-height: 96rpx; align-items: center; justify-content: center; text-decoration: underline; }
 .reservation { min-height: 96rpx; margin-bottom: 18rpx; padding: 28rpx; }
@@ -9,7 +9,7 @@
 .reservation__lab { font-weight: 650; }
 .reservation__time { margin-top: 18rpx; font-size: 30rpx; font-weight: 600; }
 .reservation__meta { margin-top: 12rpx; font-size: 24rpx; }
-.status { flex-shrink: 0; padding: 8rpx 16rpx; color: #627089; background: #f1f3f6; border-radius: 30rpx; font-size: 21rpx; }
-.status--PENDING_SCHEDULE { color: #93620c; background: #fff7df; }
-.status--APPROVED, .status--IN_USE { color: #108260; background: #eaf8f2; }
-.status--NO_SHOW, .status--VIOLATION_TERMINATED { color: #c65361; background: #fff0f1; }
+.status { flex-shrink: 0; padding: 8rpx 16rpx; color: #4a524e; background: #efece6; border-radius: 8rpx; font-size: 21rpx; }
+.status--PENDING_SCHEDULE { color: #8a5a12; background: #fff4e4; }
+.status--APPROVED, .status--IN_USE { color: #185546; background: #e7f3ee; }
+.status--NO_SHOW, .status--VIOLATION_TERMINATED { color: #9a3a30; background: #fdecea; }

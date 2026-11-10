@@ -1,1 +1,45 @@
-<view class="slot-grid"><view wx:for="{{slots}}" wx:for-item="slot" wx:key="index" class="slot {{selection && index >= selection.start && (selection.end === null ? index === selection.start : index <= selection.end) ? 'slot--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'slot--disabled' : ''}}" data-index="{{slot.index}}" bindtap="select"><text>{{slot.start}}</text><text class="slot__meta">{{selection && selection.start === index ? '起点' : selection && selection.end === index ? '终点' : mode === 'ROOM' ? slot.roomOccupied ? '已占用' : '可预约' : slot.availableSeatCount + ' 位'}}</text></view></view>
+<wxs module="board">
+var NAMES = ['凌晨', '上午', '下午', '晚间']
+var RANGES = ['00–06', '06–12', '12–18', '18–24']
+function minute(value, end) {
+  if (!value) return 0
+  if (end && value.indexOf('24:00') === 0) return 1440
+  var parts = value.split(':')
+  var hour = parseInt(parts[0], 10)
+  var mins = parseInt(parts[1] || '0', 10)
+  if (isNaN(hour)) hour = 0
+  if (isNaN(mins)) mins = 0
+  return hour * 60 + mins
+}
+function group(slots) {
+  var rows = []
+  if (!slots || !slots.length) return rows
+  var count = Math.ceil(slots.length / 12)
+  var row = 0
+  for (row = 0; row < count; row++) {
+    var items = []
+    var start = row * 12
+    var end = start + 12
+    if (end > slots.length) end = slots.length
+    var i = start
+    for (i = start; i < end; i++) items.push(slots[i])
+    rows.push({ name: NAMES[row] || '', range: RANGES[row] || ('' + row), slots: items })
+  }
+  return rows
+}
+function closed(index, openTime, closeTime) {
+  var start = minute(openTime, false)
+  var end = minute(closeTime, true)
+  return index * 30 < start || (index + 1) * 30 > end
+}
+module.exports.group = group
+module.exports.closed = closed
+</wxs>
+<view class="slot-board">
+  <view wx:for="{{board.group(slots)}}" wx:for-item="band" wx:key="range" class="slot-band">
+    <view class="slot-band__label"><text>{{band.name}}</text><text>{{band.range}}</text></view>
+    <view class="slot-grid">
+      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="slot {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'slot--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'slot--disabled' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'slot--closed' : ''}}" data-index="{{slot.index}}" bindtap="select"><text>{{slot.start}}</text><text class="slot__meta">{{selection && selection.start === slot.index ? '起点' : selection && selection.end === slot.index ? '终点' : mode === 'ROOM' ? slot.roomOccupied ? '已占用' : '可预约' : slot.availableSeatCount + ' 位'}}</text></view>
+    </view>
+  </view>
+</view>
