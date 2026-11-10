@@ -13,7 +13,7 @@ const { initMock, setOptionMock } = vi.hoisted(() => ({
 }))
 initMock.mockImplementation(() => ({ setOption: setOptionMock, resize: vi.fn(), dispose: vi.fn() }))
 
-vi.mock('echarts', () => ({ init: initMock }))
+vi.mock('../src/charts', () => ({ echarts: { init: initMock } }))
 vi.mock('../src/api/http', () => ({
   default: { get: vi.fn() },
   AUTH_TOKEN_KEY: 'campus.lab.token',
@@ -29,14 +29,14 @@ describe('图表加载时序', () => {
   beforeEach(() => {
     const pinia = createPinia()
     setActivePinia(pinia)
-    useAuthStore().setAuth('token', { userId: 1, account: 'student', name: '测试学生', roles: ['STUDENT'], status: 'ACTIVE' })
     initMock.mockClear()
     initMock.mockImplementation(() => ({ setOption: setOptionMock, resize: vi.fn(), dispose: vi.fn() }))
     setOptionMock.mockClear()
     vi.mocked(http.get).mockReset()
   })
 
-  it('工作台数据渲染后初始化预约趋势图', async () => {
+  it('管理员工作台渲染后初始化预约趋势图', async () => {
+    useAuthStore().setAuth('token', { userId: 9, account: 'admin', name: '测试管理员', roles: ['LAB_ADMIN'], status: 'ACTIVE' })
     vi.mocked(http.get).mockResolvedValue({
       date: '2026-11-03', labCount: 1, reservationCount: 2, pendingScheduleCount: 0,
       inUseCount: 1, approvedCount: 1, completedCount: 0, noShowCount: 0, cancelledCount: 0,
@@ -45,13 +45,55 @@ describe('图表加载时序', () => {
     })
     const pinia = createPinia()
     setActivePinia(pinia)
-    useAuthStore().setAuth('token', { userId: 1, account: 'student', name: '测试学生', roles: ['STUDENT'], status: 'ACTIVE' })
+    useAuthStore().setAuth('token', { userId: 9, account: 'admin', name: '测试管理员', roles: ['LAB_ADMIN'], status: 'ACTIVE' })
     const wrapper = mount(DashboardView, { global: { plugins: [pinia], stubs: { 'router-link': { template: '<a><slot /></a>' }, 'el-icon': { template: '<span><slot /></span>' } } } })
     await flushPromises()
     await nextTick()
 
     expect(wrapper.find('.chart').exists()).toBe(true)
     expect(hasLineChart()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('学生工作台展示今日实验焦点而非趋势图', async () => {
+    useAuthStore().setAuth('token', { userId: 1, account: 'student', name: '测试学生', roles: ['STUDENT'], status: 'ACTIVE' })
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/api/statistics/dashboard') {
+        return Promise.resolve({
+          date: '2026-11-11', labCount: 1, reservationCount: 1, pendingScheduleCount: 0,
+          inUseCount: 0, approvedCount: 1, completedCount: 0, noShowCount: 0, cancelledCount: 0,
+          plannedUtilization: 0, actualUtilization: 0, noShowRate: 0, creditScore: 70,
+          trend: [{ date: '2026-11-11', reservationCount: 1, noShowCount: 0 }],
+        })
+      }
+      if (url === '/api/reservations/my') {
+        return Promise.resolve({
+          items: [{
+            resvId: 9, batchId: null, batchNo: null, labId: 1, labName: '人工智能实验室',
+            date: '2026-11-11', windowStart: '14:00', windowEnd: '15:00', durationMinutes: 60,
+            startTime: '2026-11-11T14:00:00', endTime: '2026-11-11T15:00:00',
+            allocationMode: 'FIXED', reservationMode: 'ROOM', status: 'APPROVED',
+            attendeeCount: 1, seatCount: null, purpose: '答辩演示', preferences: {}, seats: [],
+            checkinChannel: null, checkinTime: null, checkoutChannel: null, checkoutTime: null, createdAt: '2026-11-10T12:00:00',
+          }],
+          page: 0, size: 20, total: 1,
+        })
+      }
+      return Promise.reject(new Error(`未知请求：${url}`))
+    })
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().setAuth('token', { userId: 1, account: 'student', name: '测试学生', roles: ['STUDENT'], status: 'ACTIVE' })
+    const wrapper = mount(DashboardView, { global: { plugins: [pinia], stubs: { 'router-link': { template: '<a><slot /></a>' }, 'el-icon': { template: '<span><slot /></span>' } } } })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.text()).toContain('下一场实验')
+    expect(wrapper.text()).toContain('人工智能实验室')
+    expect(wrapper.text()).toContain('到场签到')
+    expect(wrapper.find('.session').exists()).toBe(true)
+    expect(wrapper.find('.timeline').exists()).toBe(true)
+    expect(wrapper.find('.day__side .chart').exists()).toBe(true)
     wrapper.unmount()
   })
 

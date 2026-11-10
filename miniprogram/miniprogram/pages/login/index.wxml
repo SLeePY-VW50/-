@@ -1,19 +1,27 @@
 <view class="page auth-page">
-  <view class="auth-brand"><text class="auth-brand__mark">L</text><text class="auth-brand__name">LabSpace</text></view>
-  <view class="auth-title">高校实验室预约</view>
-  <view class="muted auth-subtitle">查询空闲时段，完成预约与到场签到</view>
-  <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">{{error}}</view>
-  <button class="button-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="wechat">微信一键登录</button>
-  <view wx:if="{{development}}" class="development card">
-    <view class="development__title">开发登录</view>
-    <view class="muted development__note">仅开发版显示，使用现有校园账号</view>
-    <label class="auth-label" for="login-account">学号</label>
-    <input id="login-account" class="auth-input" placeholder="请输入学号" value="{{account}}" bindinput="onAccount" />
-    <label class="auth-label" for="login-password">密码</label>
-    <view class="password-field">
-      <input id="login-password" class="auth-input" password="{{!showPassword}}" placeholder="请输入密码" value="{{password}}" bindinput="onPassword" />
-      <button class="password-toggle" aria-label="{{showPassword ? '隐藏密码' : '显示密码'}}" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</button>
+  <view class="auth-center">
+    <view class="auth-brand"><text class="auth-brand__mark">L</text><text class="auth-brand__name">LabSpace</text></view>
+    <view class="kicker">高校实验室</view>
+    <view class="auth-title">一天四十八格。</view>
+    <view class="muted auth-subtitle">查询空闲时段，完成预约与到场签到</view>
+    <view class="motif" aria-hidden="true">
+      <view wx:for="{{[0, 1, 2, 3]}}" wx:for-index="row" wx:key="row" class="motif__row">
+        <view wx:for="{{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}}" wx:for-item="cell" wx:for-index="col" wx:key="col" class="motif__cell {{(row * 12 + col) % 9 === 2 || (row * 12 + col) % 9 === 3 ? 'on' : ''}}"></view>
+      </view>
     </view>
-    <button class="button-secondary" disabled="{{loading}}" bindtap="developmentLogin">账号密码登录</button>
+    <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">{{error}}</view>
+    <button class="button-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="wechat">微信一键登录</button>
+    <view wx:if="{{development}}" class="development">
+      <view class="development__title">开发登录</view>
+      <view class="muted development__note">仅开发版显示，使用现有校园账号</view>
+      <label class="auth-label" for="login-account">学号</label>
+      <input id="login-account" class="auth-input" placeholder="请输入学号" value="{{account}}" bindinput="onAccount" />
+      <label class="auth-label" for="login-password">密码</label>
+      <view class="password-field">
+        <input id="login-password" class="auth-input" password="{{!showPassword}}" placeholder="请输入密码" value="{{password}}" bindinput="onPassword" />
+        <button class="password-toggle" aria-label="{{showPassword ? '隐藏密码' : '显示密码'}}" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</button>
+      </view>
+      <button class="button-secondary" disabled="{{loading}}" bindtap="developmentLogin">账号密码登录</button>
+    </view>
   </view>
 </view>

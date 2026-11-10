@@ -86,4 +86,27 @@ describe('ReservationForm', () => {
     expect((wrapper.get('[data-testid="attendee-count"]').element as HTMLInputElement).value).toBe('2')
     expect(http.post).toHaveBeenCalledTimes(1)
   })
+
+  it('缺用途时显示字段级错误且不发起请求', async () => {
+    const wrapper = await mountForm()
+    await wrapper.get('[data-testid="lab"]').setValue('7')
+    await wrapper.get('[data-testid="date"]').setValue('2026-11-03')
+    await wrapper.get('[data-testid="attendee-count"]').setValue('2')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.get('#error-purpose').text()).toContain('请填写使用用途')
+    expect(wrapper.get('[data-testid="purpose"]').attributes('aria-invalid')).toBe('true')
+    expect(http.post).not.toHaveBeenCalled()
+  })
+
+  it('固定预约超过8片时提示结束时间错误', async () => {
+    const wrapper = await mountForm()
+    await fillCommon(wrapper)
+    await wrapper.get('[data-testid="start-time"]').setValue('09:00')
+    await wrapper.get('[data-testid="end-time"]').setValue('14:00')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.get('#error-endTime').text()).toContain('最多选择 8 个时间片')
+    expect(http.post).not.toHaveBeenCalled()
+  })
 })

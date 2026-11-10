@@ -56,7 +56,7 @@ client.interceptors.response.use(async (response) => {
       }
     }
   }
-  const message = data?.message || (status === 403 ? '当前账号无权执行此操作' : status === 409 ? '操作冲突，请检查后重试' : error.message || '网络请求失败')
+  const message = data?.message || (status === 403 ? '当前账号无权执行此操作' : status === 409 ? '操作冲突，请检查后重试' : status ? '服务暂时没有返回结果，请稍后重试' : '网络请求失败，请检查连接')
   throw new ApiError(message, status, data?.code)
 })
 

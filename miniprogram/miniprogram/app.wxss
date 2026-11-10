@@ -1,10 +1,10 @@
-page { min-height: 100%; color: #18243a; background: #f4f7fb; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", sans-serif; font-size: 28rpx; }
+page { min-height: 100%; color: #1a1d1b; background: #f3f0ea; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", sans-serif; font-size: 28rpx; }
 view, text, input, textarea, button, picker { box-sizing: border-box; }
 button::after { border: 0; }
-.page { min-height: 100vh; padding: 30rpx 28rpx 48rpx; }
-.card { background: #fff; border: 2rpx solid #e8edf4; border-radius: 24rpx; box-shadow: 0 12rpx 36rpx rgb(32 55 96 / 6%); }
-.button-primary { min-height: 88rpx; color: #fff; background: #3867e8; border-radius: 18rpx; font-size: 28rpx; font-weight: 600; line-height: 88rpx; }
-.button-secondary { min-height: 72rpx; color: #53627a; background: #fff; border: 2rpx solid #dfe5ee; border-radius: 16rpx; font-size: 26rpx; line-height: 70rpx; }
-.muted { color: #77849a; }
-.error { margin-bottom: 24rpx; padding: 24rpx; color: #b94451; background: #fff0f1; border: 2rpx solid #f2c7cd; border-radius: 18rpx; font-size: 26rpx; }
-.loading, .empty { padding: 64rpx 24rpx; color: #77849a; text-align: center; }
+.page { min-height: 100vh; padding: 28rpx 28rpx 48rpx; }
+.card { background: #fbfaf7; border: 2rpx solid #e4e0d8; border-radius: 12rpx; box-shadow: none; }
+.button-primary { min-height: 88rpx; color: #fbfaf7; background: #1f6b57; border-radius: 12rpx; font-size: 28rpx; font-weight: 600; line-height: 88rpx; }
+.button-secondary { min-height: 72rpx; color: #4a524e; background: #fbfaf7; border: 2rpx solid #e4e0d8; border-radius: 12rpx; font-size: 26rpx; line-height: 70rpx; }
+.muted { color: #656d67; }
+.error { margin-bottom: 24rpx; padding: 24rpx; color: #9a3a30; background: #fdf6f5; border: 2rpx solid #efd0cb; border-radius: 12rpx; font-size: 26rpx; }
+.loading, .empty { padding: 64rpx 24rpx; color: #656d67; text-align: center; }

@@ -1,15 +1,21 @@
-.auth-page { padding-top: 15vh; }
-.auth-brand { display: flex; align-items: center; justify-content: center; gap: 18rpx; }
-.auth-brand__mark { display: grid; width: 72rpx; height: 72rpx; color: #fff; background: #3867e8; border-radius: 20rpx; place-items: center; font-weight: 800; }
-.auth-brand__name { font-size: 42rpx; font-weight: 750; }
-.auth-title { margin-top: 58rpx; font-size: 44rpx; font-weight: 700; text-align: center; }
-.auth-subtitle { margin: 16rpx 0 48rpx; text-align: center; }
-.development { margin-top: 36rpx; padding: 28rpx; }
+.auth-page { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 48rpx 40rpx 64rpx; }
+.auth-center { width: 100%; }
+.auth-brand { display: flex; align-items: center; gap: 16rpx; }
+.auth-brand__mark { display: grid; width: 52rpx; height: 52rpx; color: #fbfaf7; background: #1f6b57; border-radius: 10rpx; place-items: center; font-weight: 700; }
+.auth-brand__name { font-size: 32rpx; font-weight: 700; letter-spacing: -0.5rpx; }
+.kicker { margin-top: 48rpx; color: #1f6b57; font-size: 24rpx; font-weight: 600; }
+.auth-title { margin-top: 12rpx; font-size: 64rpx; font-weight: 700; line-height: 1.05; letter-spacing: -1rpx; }
+.auth-subtitle { margin: 16rpx 0 28rpx; }
+.motif { display: grid; gap: 8rpx; margin-bottom: 36rpx; }
+.motif__row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6rpx; }
+.motif__cell { height: 16rpx; border: 2rpx solid #e4e0d8; border-radius: 4rpx; }
+.motif__cell.on { background: #e7f3ee; border-color: #c9e3d8; }
+.development { margin-top: 36rpx; padding-top: 28rpx; border-top: 2rpx solid #e4e0d8; }
 .development__title { font-weight: 650; }
 .development__note { margin: 8rpx 0 20rpx; font-size: 24rpx; }
-.auth-label { display: block; margin: 0 0 10rpx 4rpx; font-weight: 600; }
-.auth-input { height: 96rpx; margin-bottom: 18rpx; padding: 0 24rpx; background: #f8faff; border: 2rpx solid #e8edf4; border-radius: 16rpx; }
+.auth-label { display: block; margin: 0 0 10rpx; color: #4a524e; font-weight: 600; }
+.auth-input { height: 96rpx; margin-bottom: 18rpx; padding: 0 24rpx; color: #1a1d1b; background: #fbfaf7; border: 2rpx solid #e4e0d8; border-radius: 12rpx; }
 .password-field { display: flex; align-items: flex-start; gap: 12rpx; }
 .password-field .auth-input { flex: 1; min-width: 0; }
-.password-toggle { width: 144rpx; padding: 0 12rpx; color: #3867e8; background: #fff; border: 2rpx solid #dfe5ee; border-radius: 16rpx; font-size: 26rpx; }
+.password-toggle { width: 144rpx; padding: 0 12rpx; color: #1f6b57; background: #fbfaf7; border: 2rpx solid #e4e0d8; border-radius: 12rpx; font-size: 26rpx; }
 .auth-page .button-primary, .auth-page .button-secondary, .password-toggle { min-height: 96rpx; line-height: 96rpx; }

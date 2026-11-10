@@ -1,27 +1,30 @@
-<view class="page">
-  <view class="brand"><text class="brand__mark">L</text><text class="brand__name">LabSpace</text></view>
-  <view class="muted greeting">你好，{{userName}}</view>
-  <view class="headline">安排今天的实验</view>
+<view class="page home">
+  <view class="kicker">今日实验</view>
+  <view class="headline">{{userName || 'LabSpace'}}</view>
   <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">
     <text>{{error}}</text>
     <button class="retry" aria-label="重试加载首页预约" bindtap="load">重试</button>
   </view>
-  <view wx:if="{{next}}" class="next-card" aria-role="button" aria-label="查看下一场预约详情" bindtap="openNext">
-    <view class="next-card__top"><text>下一场预约</text><text>{{nextStatus}}</text></view>
-    <view class="next-card__lab">{{next.labName || '待分配实验室'}}</view>
-    <view class="next-card__time">{{nextTime}}</view>
-    <view class="next-card__seat">{{nextSeats || '整室预约或等待分配'}}</view>
-    <button class="scan-button" disabled="{{actionLoading}}" loading="{{actionLoading}}" aria-label="为下一场预约扫码签到" catchtap="scanNext">{{actionLoading ? '正在签到' : '扫码签到'}}</button>
+  <view wx:if="{{next}}" class="session">
+    <view class="session__kicker">下一场预约</view>
+    <view class="session__time">{{nextClock}}</view>
+    <view class="session__lab">{{next.labName || '待分配实验室'}}</view>
+    <view class="session__seat">{{next.date}} · {{nextStatus}} · {{nextPlace}}</view>
+    <button class="button-primary scan-button" disabled="{{actionLoading}}" loading="{{actionLoading}}" aria-label="为下一场预约扫码签到" catchtap="scanNext">{{actionLoading ? '正在签到' : '扫码签到'}}</button>
+    <view class="session__link" aria-role="button" aria-label="查看下一场预约详情" bindtap="openNext">查看详情</view>
   </view>
   <view wx:if="{{loading}}" class="loading" aria-live="polite">正在加载首页预约</view>
-  <view wx:if="{{!next && !loading && !error}}" class="card empty">暂无待使用预约，去实验室选择时段</view>
-  <view class="quick-grid">
-    <button class="card quick" bindtap="labs">预约实验室<text>查看实时空闲时段</text></button>
-    <button class="card quick" bindtap="reservations">我的预约<text>详情、取消与签退</text></button>
+  <view wx:if="{{!next && !loading && !error}}" class="empty-session">
+    <view class="empty-session__title">今天还没有下一场</view>
+    <view class="muted">去实验室选择开放时段。</view>
   </view>
-  <view wx:if="{{recent.length}}" class="section-title">近期需求 · 待排期</view>
-  <view wx:for="{{recent}}" wx:key="resvId" class="card recent">
-    <view><text>{{item.labName || '待排期分配'}}</text><text>{{item.statusText}}</text></view>
+  <view wx:if="{{recent.length}}" class="section-title">待排期</view>
+  <view wx:for="{{recent}}" wx:key="resvId" class="later">
+    <view class="later__top"><text>{{item.labName || '待排期分配'}}</text><text>{{item.statusText}}</text></view>
     <view class="muted">{{item.timeText}}</view>
+  </view>
+  <view class="links">
+    <button class="link" bindtap="labs">预约实验室<text>查看实时空闲时段</text></button>
+    <button class="link" bindtap="reservations">我的预约<text>详情、取消与签退</text></button>
   </view>
 </view>

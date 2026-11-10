@@ -13,6 +13,12 @@ const accounts = [
   { account: 'L1001', role: '实验室管理员' },
   { account: 'A1001', role: '系统管理员' },
 ]
+const bands = [
+  { name: '凌晨', range: '00–06' },
+  { name: '上午', range: '06–12' },
+  { name: '下午', range: '12–18' },
+  { name: '晚间', range: '18–24' },
+]
 const form = reactive({ account: '', password: '' })
 const loading = ref(false)
 const error = ref('')
@@ -20,6 +26,10 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
+function cellOn(band: number, cell: number) {
+  const index = band * 12 + cell
+  return index % 9 === 2 || index % 9 === 3
+}
 function fill(account: string) { form.account = account; form.password = 'Lab@2026'; error.value = '' }
 async function login() {
   if (!form.account.trim() || !form.password) { error.value = '请输入账号和密码'; return }
@@ -36,85 +46,74 @@ async function login() {
 </script>
 
 <template>
-  <main class="login-page">
-    <section class="login-context">
-      <div class="login-brand"><span class="brand-mark" aria-hidden="true">L</span><span><strong>LabSpace</strong><small>高校实验室预约与排期平台</small></span></div>
-      <div class="login-statement"><span class="eyebrow">CAMPUS LAB MANAGEMENT</span><h1>让每一次实验<br>预约都井然有序。</h1><p>统一管理实验室、工位与开放时段。通过清晰的预约与排程，让空间资源发挥更大价值。</p></div>
-      <div class="schedule-preview" aria-hidden="true">
-        <div class="schedule-preview__head"><span><i class="preview-dot" />本周预约时间板</span><small>30 MIN / SLOT</small></div>
-        <div class="schedule-preview__days"><span v-for="day in ['一', '二', '三', '四', '五', '六', '日']" :key="day">周{{ day }}</span></div>
-        <div class="schedule-preview__grid"><i v-for="index in 35" :key="index" :class="{ filled: [3, 4, 10, 17, 18, 25, 31].includes(index), soft: [8, 15, 22, 28, 29].includes(index) }" /></div>
-        <div class="schedule-preview__axis"><span>08:00</span><span>12:00</span><span>18:00</span></div>
+  <main class="gate">
+    <header class="gate__top">
+      <span class="brand"><i aria-hidden="true">L</i><strong>LabSpace</strong></span>
+      <router-link to="/terminal"><el-icon><Monitor /></el-icon>终端签到</router-link>
+    </header>
+    <div class="gate__center">
+      <div class="gate__cluster">
+        <section class="gate__stage">
+          <div class="gate__copy">
+            <p class="eyebrow">高校实验室</p>
+            <h1>一天<br>四十八格。</h1>
+            <p>先看清占用、容量和审批，再决定提交预约还是去签到。</p>
+          </div>
+          <div class="gate__board" aria-hidden="true">
+            <div v-for="(band, bandIndex) in bands" :key="band.name" class="gate__band">
+              <span><strong>{{ band.name }}</strong><small>{{ band.range }}</small></span>
+              <i v-for="cell in 12" :key="cell" :class="{ on: cellOn(bandIndex, cell) }" />
+            </div>
+          </div>
+        </section>
+        <form class="gate__dock" @submit.prevent="login">
+          <div class="gate__fields">
+            <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="学号或工号"></label>
+            <label class="field"><span>密码</span><input v-model="form.password" type="password" autocomplete="current-password" placeholder="密码"></label>
+            <button class="button button--primary" type="submit" :disabled="loading">{{ loading ? '正在验证…' : '进入' }}<el-icon v-if="!loading"><ArrowRight /></el-icon></button>
+          </div>
+          <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
+          <div v-if="isDev" class="gate__dev">
+            <span>本地账号</span>
+            <button v-for="item in accounts" :key="item.account" type="button" @click="fill(item.account)">{{ item.role }} {{ item.account }}</button>
+          </div>
+        </form>
       </div>
-      <div class="login-context__foot"><span><i />48 时间片，精确到每 30 分钟</span><span class="mono">FIXED · SCHEDULABLE · CHECK-IN</span></div>
-    </section>
-    <section class="login-panel">
-      <form class="login-form" @submit.prevent="login">
-        <div class="login-form__icon"><el-icon><Monitor /></el-icon></div>
-        <div class="login-form__heading"><span class="eyebrow">WELCOME BACK</span><h2>欢迎回来</h2><p>登录以继续使用实验室管理平台。</p></div>
-        <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="请输入学号或工号"></label>
-        <label class="field"><span>密码</span><input v-model="form.password" type="password" autocomplete="current-password" placeholder="请输入账号密码"></label>
-        <div v-if="error" class="error-banner" role="alert">{{ error }}</div>
-        <button class="button button--primary login-submit" type="submit" :disabled="loading"><span>{{ loading ? '正在验证…' : '登录工作台' }}</span><el-icon v-if="!loading"><ArrowRight /></el-icon></button>
-        <div v-if="isDev" class="demo-accounts"><div class="demo-accounts__title"><span>本地开发快捷体验</span><small>点击自动填充</small></div><div class="demo-accounts__grid"><button v-for="item in accounts" :key="item.account" type="button" @click="fill(item.account)"><strong>{{ item.role }}</strong><code>{{ item.account }}</code></button></div></div>
-        <router-link class="terminal-entry" to="/terminal"><span><el-icon><Monitor /></el-icon>前往实验室终端签到</span><el-icon><ArrowRight /></el-icon></router-link>
-      </form>
-      <p class="login-panel__foot">© 2026 LabSpace · 按角色授权访问</p>
-    </section>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.login-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(480px, 1.08fr) minmax(440px, .92fr); background: #fff; }
-.login-context { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 36px clamp(36px, 5vw, 76px) 30px; overflow: hidden; color: #fff; background: #111c30; }
-.login-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
-.brand-mark { display: grid; place-items: center; width: 36px; height: 36px; color: #fff; background: linear-gradient(135deg, #3f75f2, #6d8df5); border-radius: 11px; box-shadow: 0 6px 14px rgb(56 103 232 / 25%); font-size: 20px; font-weight: 800; }
-.login-brand strong, .login-brand small { display: block; }
-.login-brand strong { color: #fff; font-size: 17px; letter-spacing: .01em; }
-.login-brand small { margin-top: 3px; color: #8793aa; font-size: 9px; }
-.login-statement { position: relative; z-index: 1; margin: auto 0 34px; max-width: 570px; padding-top: 52px; }
-.login-statement .eyebrow { color: #8ba4d8; }
-.login-statement h1 { margin: 17px 0 20px; color: #fff; font-size: clamp(38px, 4vw, 54px); line-height: 1.3; letter-spacing: -.035em; }
-.login-statement p { max-width: 440px; margin: 0; color: #a5b1c6; font-size: 14px; line-height: 1.9; }
-.schedule-preview { position: relative; z-index: 1; width: min(500px, 100%); margin-bottom: 27px; padding: 21px; background: #1a2942; border: 1px solid #34435b; border-radius: 14px; box-shadow: 0 20px 50px rgb(0 0 0 / 20%); }
-.schedule-preview__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.schedule-preview__head > span { display: flex; align-items: center; gap: 8px; color: #d5dbea; font-size: 12px; font-weight: 600; }
-.preview-dot { width: 7px; height: 7px; background: #41c994; border-radius: 50%; }
-.schedule-preview__head small { color: #7f90ad; font: 9px 'Cascadia Mono', Consolas, monospace; }
-.schedule-preview__days, .schedule-preview__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
-.schedule-preview__days { margin-bottom: 7px; }
-.schedule-preview__days span { color: #7f90ad; text-align: center; font-size: 9px; }
-.schedule-preview__grid i { height: 17px; background: #22334e; border: 1px solid #2d3e5a; border-radius: 4px; }
-.schedule-preview__grid i.filled { background: #4b7bec; border-color: #4b7bec; }
-.schedule-preview__grid i.soft { background: #344d7c; border-color: #344d7c; }
-.schedule-preview__axis { display: flex; justify-content: space-between; margin-top: 12px; color: #7f90ad; font: 9px 'Cascadia Mono', Consolas, monospace; }
-.login-context__foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #72819b; font-size: 9px; }
-.login-context__foot > span:first-child { display: flex; align-items: center; gap: 7px; }
-.login-context__foot i { width: 6px; height: 6px; background: #41c994; border-radius: 50%; }
-.login-context__foot .mono { font-size: 8px; }
-.login-panel { display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 44px 40px 25px; background: #fff; }
-.login-form { width: min(410px, 100%); display: grid; gap: 19px; margin: auto 0; padding: 31px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
-.login-form__icon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: -3px; color: var(--primary); background: var(--primary-soft); border-radius: 10px; font-size: 20px; }
-.login-form__heading { margin-bottom: 5px; }
-.login-form__heading h2 { margin: 7px 0 7px; font-size: 28px; }
-.login-form__heading p { margin: 0; color: var(--muted); font-size: 12px; }
-.login-form .field { gap: 8px; }
-.login-form .field input { min-height: 43px; }
-.login-form .error-banner { margin: -3px 0; }
-.login-submit { justify-content: space-between; min-height: 44px; padding-inline: 18px; }
-.demo-accounts { padding-top: 18px; border-top: 1px solid var(--line); }
-.demo-accounts__title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.demo-accounts__title span { color: #53627a; font-size: 12px; font-weight: 600; }
-.demo-accounts__title small { color: #96a1b2; font-size: 10px; }
-.demo-accounts__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-.demo-accounts__grid button { display: grid; gap: 5px; padding: 10px 11px; color: #4b5b76; background: #f8faff; border: 1px solid #e8edf6; border-radius: 8px; cursor: pointer; text-align: left; }
-.demo-accounts__grid button:hover { background: #f1f5ff; border-color: #91aaf0; }
-.demo-accounts__grid strong { font-size: 12px; font-weight: 600; }
-.demo-accounts__grid code { color: #96a1b2; font: 10px 'Cascadia Mono', Consolas, monospace; }
-.terminal-entry { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 17px; color: #53627a; border-top: 1px solid var(--line); font-size: 13px; font-weight: 600; }
-.terminal-entry > span { display: flex; align-items: center; gap: 7px; }
-.login-panel__foot { margin: 28px 0 0; color: #a0aaba; font-size: 10px; }
-@media (max-width: 1050px) { .login-page { grid-template-columns: minmax(390px, .9fr) minmax(420px, 1.1fr); } .login-context { padding-inline: 36px; } .login-context__foot .mono { display: none; } .login-form { padding: 26px; } }
-@media (max-width: 820px) { .login-page { grid-template-columns: 1fr; } .login-context { display: none; } .login-panel { min-height: 100dvh; padding: 34px 22px 22px; background: #f4f7fb; } .login-form { margin: auto 0; } .login-panel__foot { margin-top: 25px; } }
-@media (max-width: 440px) { .login-form { padding: 23px 20px; } .login-panel { padding-inline: 14px; } }
+.gate { min-height: 100dvh; display: flex; flex-direction: column; background: var(--canvas); }
+.gate__top { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 28px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand i { display: grid; place-items: center; width: 26px; height: 26px; color: var(--paper); background: var(--primary); border-radius: 6px; font-style: normal; font-weight: 700; }
+.brand strong { font-size: 15px; letter-spacing: -.02em; }
+.gate__top a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--body); font-size: 13px; font-weight: 600; }
+.gate__top a:hover { color: var(--primary); text-decoration: none; }
+.gate__center { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: auto; padding: 28px 36px 36px; }
+.gate__cluster { width: min(1120px, 100%); margin-block: auto; display: grid; gap: 28px; }
+.gate__stage { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); gap: 36px; align-items: center; }
+.gate__copy h1 { margin: 12px 0 14px; font-size: clamp(52px, 6vw, 80px); line-height: .92; letter-spacing: -.05em; }
+.gate__copy p:last-child { max-width: 28ch; margin: 0; color: var(--body); font-size: 15px; line-height: 1.6; }
+.gate__board { display: grid; gap: 10px; align-content: center; }
+.gate__band { display: grid; grid-template-columns: 52px repeat(12, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.gate__band span strong, .gate__band span small { display: block; }
+.gate__band span strong { font-size: 13px; }
+.gate__band span small { color: var(--muted); font: 11px var(--mono); }
+.gate__band i { height: 42px; border: 1px solid var(--line); border-radius: 4px; background: transparent; }
+.gate__band i.on { background: var(--primary-soft); border-color: #c9e3d8; }
+.gate__dock { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+.gate__fields { display: grid; grid-template-columns: minmax(160px, 220px) minmax(160px, 220px) max-content; gap: 12px; align-items: end; justify-content: start; }
+.gate__dock .error-banner { margin: 0; }
+.gate__dev { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; color: var(--muted); font-size: 12px; }
+.gate__dev button { padding: 0; color: var(--body); background: none; border: 0; cursor: pointer; font-size: 12px; text-decoration: underline; }
+.gate__dev button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .gate__center { padding: 24px 16px 28px; }
+  .gate__stage { grid-template-columns: 1fr; gap: 22px; }
+  .gate__copy h1 { font-size: 48px; }
+  .gate__band i { height: 22px; }
+  .gate__fields { grid-template-columns: 1fr; }
+}
 </style>

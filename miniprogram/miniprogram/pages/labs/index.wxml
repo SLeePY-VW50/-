@@ -1,17 +1,17 @@
-<view class="page">
-  <view class="page-title">实验室</view>
-  <view class="muted page-subtitle">查看开放规则与每 30 分钟实时余量</view>
+<view class="page board">
+  <view class="page-title">时间尺</view>
+  <view class="muted page-subtitle">48 格，每格 30 分钟</view>
   <view wx:if="{{error}}" class="error">
     <text>{{error}}</text>
     <text bindtap="retry" class="retry" role="button">重试</text>
   </view>
   <picker range="{{labNames}}" value="{{labIndex}}" disabled="{{!labNames.length}}" aria-label="选择实验室" bindchange="onLab">
-    <view class="card picker-card">
+    <view class="picker-row">
       <text>{{labNames[labIndex] || '暂无实验室'}}</text>
-      <text>›</text>
+      <text class="muted">更换</text>
     </view>
   </picker>
-  <view class="card filters">
+  <view class="filters">
     <picker mode="date" value="{{date}}" aria-label="选择预约日期" bindchange="onDate">
       <view class="filter-value"><text class="filter-label">预约日期</text>{{date}}</view>
     </picker>
@@ -21,16 +21,12 @@
     </view>
   </view>
   <view wx:if="{{loading}}" class="loading">正在读取开放规则与占用情况</view>
-  <view wx:elif="{{availability}}" class="card availability">
-    <view class="availability__head">
-      <text>选择连续时段</text>
-      <text class="muted">每格 30 分钟</text>
-    </view>
+  <block wx:elif="{{availability}}">
     <slot-grid wx:if="{{dayRule && availability.slots.length}}" slots="{{availability.slots}}" mode="{{mode}}" openTime="{{openTime}}" closeTime="{{closeTime}}" selection="{{selection}}" bind:change="onSelection" />
     <view wx:elif="{{dayRule}}" class="empty">当日暂无可显示的时间片</view>
     <view wx:if="{{dayRule}}" class="muted rule-note">开放 {{openTime}}–{{closeTime}} · 预约 {{dayRule.minDurationMinutes}}–{{dayRule.maxDurationMinutes}} 分钟 · 提前 {{dayRule.advanceMinDays}}–{{dayRule.advanceMaxDays}} 天</view>
     <view wx:else class="empty">当日未开放</view>
-  </view>
+  </block>
   <view wx:elif="{{!error && !labs.length}}" class="empty">暂无可预约实验室</view>
   <view wx:if="{{selectedText}}" class="selection-bar">
     <view>
