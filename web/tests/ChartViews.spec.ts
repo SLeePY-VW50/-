@@ -91,7 +91,9 @@ describe('图表加载时序', () => {
     expect(wrapper.text()).toContain('下一场实验')
     expect(wrapper.text()).toContain('人工智能实验室')
     expect(wrapper.text()).toContain('到场签到')
-    expect(wrapper.find('.chart').exists()).toBe(false)
+    expect(wrapper.find('.session').exists()).toBe(true)
+    expect(wrapper.find('.timeline').exists()).toBe(true)
+    expect(wrapper.find('.day__side .chart').exists()).toBe(true)
     wrapper.unmount()
   })
 

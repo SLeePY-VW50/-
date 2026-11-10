@@ -63,21 +63,30 @@ onMounted(loadLabs)
 </script>
 
 <template>
-  <div class="page">
-    <header class="page-header"><div><span class="eyebrow">实时占用 · 30 分钟一格</span><h1>实验室与工位时间尺</h1><p>选择日期与实验室，查看真实开放规则和每30分钟的占用情况。</p></div><button v-if="canReserve && labs.length" class="button button--primary" type="button" @click="showForm = true">新建预约</button></header>
-    <div v-if="success" class="success-banner" role="status">{{ success }}</div>
-    <div v-if="error" class="error-banner" role="alert">{{ error }} <button class="button button--small" @click="selectedLabId ? loadAvailability() : loadLabs()">重试</button></div>
-    <section class="panel">
-      <div class="toolbar">
+  <div class="board">
+    <header class="board__bar">
+      <div>
+        <span class="eyebrow">预约</span>
+        <h1>时间尺</h1>
+      </div>
+      <div class="board__tools">
         <label class="field"><span>实验室</span><select v-model.number="selectedLabId" @change="loadAvailability"><option v-for="lab in labs" :key="lab.labId" :value="lab.labId">{{ lab.code }} · {{ lab.name }}</option></select></label>
         <label class="field"><span>日期</span><input v-model="date" type="date" @change="loadAvailability"></label>
-        <label class="field"><span>时间尺查看方式</span><select v-model="gridMode"><option value="ROOM">整室占用</option><option value="SEAT">工位余量</option></select></label>
-        <span v-if="selectedLab" class="tag" :class="selectedLab.status === 'ACTIVE' ? 'tag--green' : 'tag--amber'">{{ statusLabels[selectedLab.status] }}</span>
+        <label class="field"><span>查看</span><select v-model="gridMode"><option value="ROOM">整室占用</option><option value="SEAT">工位余量</option></select></label>
+        <button v-if="canReserve && labs.length" class="button button--primary" type="button" @click="showForm = true">新建预约</button>
+      </div>
+    </header>
+    <div v-if="success" class="success-banner board__banner" role="status">{{ success }}</div>
+    <div v-if="error" class="error-banner board__banner" role="alert">{{ error }} <button class="button button--small" @click="selectedLabId ? loadAvailability() : loadLabs()">重试</button></div>
+    <section class="board__canvas">
+      <div v-if="selectedLab" class="lab-summary">
+        <div><strong>{{ selectedLab.name }}</strong><span>{{ selectedLab.location }} · 容量 {{ selectedLab.capacity }}</span></div>
+        <span class="tag" :class="selectedLab.status === 'ACTIVE' ? 'tag--green' : 'tag--amber'">{{ statusLabels[selectedLab.status] }}</span>
+        <div class="lab-summary__rule"><span>当日开放</span><strong class="mono">{{ dayRule ? `${openTime}–${closeTime}` : '未开放' }}</strong></div>
       </div>
       <div v-if="loading" class="loading-line">正在读取开放规则与占用位图</div>
       <EmptyState v-else-if="!error && !labs.length" title="暂无实验室" description="实验室资源尚未配置。" />
       <template v-else-if="availability && selectedLab">
-        <div class="lab-summary"><div><strong>{{ selectedLab.name }}</strong><span>{{ selectedLab.location }} · 容量 {{ selectedLab.capacity }}</span></div><div class="lab-summary__rule"><span>当日开放</span><strong class="mono">{{ dayRule ? `${openTime}–${closeTime}` : '未开放' }}</strong></div></div>
         <SlotGrid v-model="selection" :slots="availability.slots" :mode="gridMode" :disabled="availability.labStatus !== 'ACTIVE' || !dayRule" :open-time="openTime" :close-time="closeTime" />
         <div v-if="selection && canReserve" class="selection-action" role="status">
           <div class="selection-action__copy">
@@ -88,9 +97,10 @@ onMounted(loadLabs)
         </div>
       </template>
     </section>
-    <div v-if="rules || availability" class="split-layout lab-details">
-      <section class="panel"><div class="panel__header"><h2>开放与签到规则</h2></div><dl v-if="rules" class="detail-list"><dt>当日预约时长</dt><dd>{{ dayRule ? `${dayRule.minDurationMinutes}–${dayRule.maxDurationMinutes} 分钟` : '当日未配置开放规则' }}</dd><dt>提前预约范围</dt><dd>{{ dayRule ? `${dayRule.advanceMinDays}–${dayRule.advanceMaxDays} 天` : '—' }}</dd><dt>免费取消</dt><dd>开始前 {{ rules.cancellation.freeBeforeHours }} 小时</dd><dt>签到窗口</dt><dd>开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟</dd></dl></section>
-      <section class="panel"><div class="panel__header"><div><h2>工位状态</h2><span class="panel__subtitle">配置、区域与资源状态来自实时 availability</span></div></div><div v-if="availability?.seats.length" class="table-wrap"><table class="data-table"><thead><tr><th>工位</th><th>区域</th><th>配置</th><th>靠窗</th><th>状态</th></tr></thead><tbody><tr v-for="seat in availability.seats" :key="seat.seatId"><td class="mono">{{ seat.seatCode }}</td><td>{{ seat.zoneCode }}</td><td>{{ seat.specLevel }}</td><td>{{ seat.nearWindow ? '是' : '否' }}</td><td><span class="tag" :class="seat.status === 'ACTIVE' ? 'tag--green' : 'tag--amber'">{{ statusLabels[seat.status] }}</span></td></tr></tbody></table></div><EmptyState v-else title="该实验室无工位数据" /></section>
+    <div v-if="rules || availability" class="board__foot">
+      <dl v-if="rules" class="detail-list"><dt>当日预约时长</dt><dd>{{ dayRule ? `${dayRule.minDurationMinutes}–${dayRule.maxDurationMinutes} 分钟` : '当日未配置开放规则' }}</dd><dt>提前预约范围</dt><dd>{{ dayRule ? `${dayRule.advanceMinDays}–${dayRule.advanceMaxDays} 天` : '—' }}</dd><dt>免费取消</dt><dd>开始前 {{ rules.cancellation.freeBeforeHours }} 小时</dd><dt>签到窗口</dt><dd>开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟</dd></dl>
+      <div v-if="availability?.seats.length" class="table-wrap"><table class="data-table"><thead><tr><th>工位</th><th>区域</th><th>配置</th><th>靠窗</th><th>状态</th></tr></thead><tbody><tr v-for="seat in availability.seats" :key="seat.seatId"><td class="mono">{{ seat.seatCode }}</td><td>{{ seat.zoneCode }}</td><td>{{ seat.specLevel }}</td><td>{{ seat.nearWindow ? '是' : '否' }}</td><td><span class="tag" :class="seat.status === 'ACTIVE' ? 'tag--green' : 'tag--amber'">{{ statusLabels[seat.status] }}</span></td></tr></tbody></table></div>
+      <EmptyState v-else title="该实验室无工位数据" />
     </div>
     <el-dialog v-if="canReserve" v-model="showForm" title="新建预约" width="760px" destroy-on-close>
       <ReservationForm :labs="labs.filter((lab) => lab.status === 'ACTIVE')" :initial-lab-id="selectedLabId" :initial-date="date" :selected-range="selection" @submitted="onReserved" />
@@ -99,7 +109,14 @@ onMounted(loadLabs)
 </template>
 
 <style scoped>
-.lab-summary { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 16px; padding: 14px 16px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 6px; }
+.board__bar { position: sticky; top: 56px; z-index: 8; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 16px 28px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.board__bar h1 { margin: 4px 0 0; font-size: 28px; }
+.board__tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.board__tools .field { min-width: 150px; }
+.board__banner { margin: 12px 28px 0; }
+.board__canvas { padding: 16px 28px 28px; }
+.board__foot { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; padding: 18px 28px 36px; border-top: 1px solid var(--line); }
+.lab-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
 .lab-summary strong, .lab-summary span { display: block; }
 .lab-summary strong { font-size: 15px; }
 .lab-summary span { margin-top: 5px; color: var(--muted); font-size: 12px; }
@@ -109,6 +126,10 @@ onMounted(loadLabs)
 .selection-action__copy { display: grid; gap: 4px; min-width: 0; }
 .selection-action__copy > strong { color: var(--primary); font-size: 13px; }
 .selection-action__copy > span { color: var(--muted); font-size: 12px; }
-.lab-details { grid-template-columns: minmax(260px, .65fr) minmax(0, 1.35fr); }
-@media (max-width: 640px) { .lab-summary, .selection-action { align-items: stretch; flex-direction: column; } .lab-summary__rule { text-align: left; } .selection-action .button { width: 100%; } }
+@media (max-width: 900px) {
+  .board__bar, .board__canvas, .board__foot { padding-inline: 16px; }
+  .board__bar { align-items: stretch; flex-direction: column; position: static; }
+  .board__foot { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) { .lab-summary, .selection-action { align-items: stretch; flex-direction: column; } .lab-summary__rule { text-align: left; } .selection-action .button, .board__tools .button { width: 100%; } }
 </style>

@@ -44,8 +44,8 @@ h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { color: var(--ink); font-weight: 700; text-wrap: pretty; }
 h1 { letter-spacing: -.04em; }
 h2, h3 { letter-spacing: -.02em; }
-.page { width: 100%; max-width: 1440px; margin: 0 auto; padding: 28px 32px 56px; }
-.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.page { width: 100%; max-width: none; margin: 0; padding: 0 0 40px; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin: 0; padding: 22px 32px 16px; border-bottom: 1px solid var(--line); }
 .page-header > div:first-child { min-width: 0; }
 .page-header h1 { margin: 8px 0 6px; font-size: clamp(30px, 2.6vw, 36px); line-height: 1.15; }
 .page-header p { max-width: 62ch; margin: 0; color: var(--body); font-size: 14px; line-height: 1.65; }
@@ -58,7 +58,7 @@ h2, h3 { letter-spacing: -.02em; }
 .skeleton-line--lg { width: 42%; height: 26px; margin-top: 8px; margin-bottom: 10px; }
 .skeleton-line--sm { width: 58%; height: 10px; margin-bottom: 0; }
 .skeleton-panel { min-height: 280px; margin-bottom: 16px; }
-.panel { min-width: 0; margin-bottom: 16px; padding: 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: none; }
+.panel { min-width: 0; margin: 0; padding: 20px 32px 24px; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; }
 .panel__header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
 .panel__header h2, .panel h2 { margin-bottom: 4px; font-size: 16px; line-height: 1.35; }
 .panel__header h2 { margin: 0; }
@@ -123,8 +123,8 @@ h2, h3 { letter-spacing: -.02em; }
   .split-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .page { padding: 20px 16px 40px; }
-  .page-header { align-items: flex-start; flex-direction: column; gap: 16px; margin-bottom: 18px; }
+  .page { padding: 0 0 32px; }
+  .page-header { align-items: flex-start; flex-direction: column; gap: 16px; padding: 18px 16px 14px; }
   .page-header h1 { font-size: 28px; }
   .metrics-grid { gap: 10px; }
   .panel { padding: 16px; }
