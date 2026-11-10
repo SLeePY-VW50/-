@@ -32,14 +32,35 @@ function closed(index, openTime, closeTime) {
   var end = minute(closeTime, true)
   return index * 30 < start || (index + 1) * 30 > end
 }
+function maxOpen(slots) {
+  var max = 0
+  var i = 0
+  if (!slots) return 0
+  for (i = 0; i < slots.length; i++) {
+    if (slots[i].availableSeatCount > max) max = slots[i].availableSeatCount
+  }
+  return max
+}
+function note(slot, mode, selection, peak) {
+  if (selection && selection.start === slot.index && selection.end !== null && selection.end !== slot.index) return '起点'
+  if (selection && selection.end === slot.index) return '终点'
+  if (selection && selection.start === slot.index) return '起点'
+  var full = mode === 'ROOM' ? slot.roomOccupied : slot.availableSeatCount === 0
+  if (full) return '满'
+  if (mode === 'SEAT' && peak > 0 && slot.availableSeatCount < peak) return '余' + slot.availableSeatCount
+  return ''
+}
 module.exports.group = group
 module.exports.closed = closed
+module.exports.maxOpen = maxOpen
+module.exports.note = note
 </wxs>
+<view class="legend"><text class="legend__open">可约</text><text class="legend__busy">占用</text><text class="legend__pick">选中</text></view>
 <view class="slot-board">
   <view wx:for="{{board.group(slots)}}" wx:for-item="band" wx:key="range" class="slot-band">
     <view class="slot-band__label"><text>{{band.name}}</text><text>{{band.range}}</text></view>
     <view class="slot-grid">
-      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="slot {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'slot--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'slot--disabled' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'slot--closed' : ''}}" data-index="{{slot.index}}" bindtap="select"><text>{{slot.start}}</text><text class="slot__meta">{{selection && selection.start === slot.index ? '起点' : selection && selection.end === slot.index ? '终点' : mode === 'ROOM' ? slot.roomOccupied ? '已占用' : '可预约' : slot.availableSeatCount + ' 位'}}</text></view>
+      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="slot {{slot.index % 2 === 0 ? 'slot--hour' : ''}} {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'slot--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'slot--disabled' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'slot--closed' : ''}}" data-index="{{slot.index}}" bindtap="select"><text>{{slot.start}}</text><text wx:if="{{board.note(slot, mode, selection, board.maxOpen(slots))}}" class="slot__meta">{{board.note(slot, mode, selection, board.maxOpen(slots))}}</text></view>
     </view>
   </view>
 </view>

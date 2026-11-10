@@ -4,15 +4,28 @@ import { restoreSession } from '../../auth/session'
 import { readSession } from '../../auth/storage'
 import { scanAndCheckin } from '../../actions/reservations'
 import { nextReservation } from '../../utils/reservations'
-import { reservationTime, statusLabels, toDateInput } from '../../utils/format'
+import { reservationTime, statusLabels, timeOnly, toDateInput } from '../../utils/format'
 import type { Reservation } from '../../api/types'
+
+function clockRange(item: Reservation) {
+  if (item.startTime && item.endTime) return `${timeOnly(item.startTime)}–${timeOnly(item.endTime, true)}`
+  return `${timeOnly(item.windowStart)}–${timeOnly(item.windowEnd, true)}`
+}
+
+function placeSummary(item: Reservation) {
+  if (item.reservationMode === 'ROOM') return '整室'
+  const count = item.seats?.length || item.seatCount || 0
+  return count > 0 ? `${count} 个工位` : '等待分配'
+}
 
 Page({
   data: {
     userName: '',
     next: null as Reservation | null,
     nextTime: '',
+    nextClock: '',
     nextSeats: '',
+    nextPlace: '',
     nextStatus: '',
     recent: [] as Array<Reservation & { timeText: string; statusText: string }>,
     loading: true,
@@ -48,7 +61,9 @@ Page({
       this.setData({
         next,
         nextTime: next ? reservationTime(next) : '',
+        nextClock: next ? clockRange(next) : '',
         nextSeats: next?.seats.map(seat => seat.seatCode).join('、') ?? '',
+        nextPlace: next ? placeSummary(next) : '',
         nextStatus: next ? statusLabels[next.status] : '',
         recent: pending.items.map(item => ({ ...item, timeText: reservationTime(item), statusText: statusLabels[item.status] })),
       })

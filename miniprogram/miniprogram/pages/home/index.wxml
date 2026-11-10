@@ -7,9 +7,9 @@
   </view>
   <view wx:if="{{next}}" class="session">
     <view class="session__kicker">下一场预约</view>
-    <view class="session__time">{{nextTime}}</view>
+    <view class="session__time">{{nextClock}}</view>
     <view class="session__lab">{{next.labName || '待分配实验室'}}</view>
-    <view class="session__seat">{{nextStatus}}<text wx:if="{{nextSeats}}"> · {{nextSeats}}</text><text wx:else> · 整室预约或等待分配</text></view>
+    <view class="session__seat">{{next.date}} · {{nextStatus}} · {{nextPlace}}</view>
     <button class="button-primary scan-button" disabled="{{actionLoading}}" loading="{{actionLoading}}" aria-label="为下一场预约扫码签到" catchtap="scanNext">{{actionLoading ? '正在签到' : '扫码签到'}}</button>
     <view class="session__link" aria-role="button" aria-label="查看下一场预约详情" bindtap="openNext">查看详情</view>
   </view>

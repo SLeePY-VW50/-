@@ -3,9 +3,9 @@
 .retry { min-height: 96rpx; margin-top: 12rpx; padding: 0 28rpx; color: #9a3a30; background: #fbfaf7; border: 2rpx solid #efd0cb; border-radius: 12rpx; font-size: 26rpx; line-height: 96rpx; }
 .session { padding: 8rpx 0 28rpx; border-bottom: 2rpx solid #e4e0d8; }
 .session__kicker { color: #1f6b57; font-size: 24rpx; font-weight: 600; }
-.session__time { margin-top: 12rpx; font-size: 40rpx; font-weight: 700; line-height: 1.25; letter-spacing: -0.5rpx; }
-.session__lab { margin-top: 12rpx; font-size: 34rpx; font-weight: 650; }
-.session__seat { margin: 10rpx 0 24rpx; color: #4a524e; font-size: 24rpx; }
+.session__time { margin-top: 8rpx; font-size: 72rpx; font-weight: 700; line-height: 1; letter-spacing: -1rpx; }
+.session__lab { margin-top: 16rpx; font-size: 36rpx; font-weight: 650; }
+.session__seat { margin: 8rpx 0 28rpx; color: #4a524e; font-size: 26rpx; }
 .scan-button { min-height: 96rpx; line-height: 96rpx; }
 .session__link { margin-top: 16rpx; color: #1f6b57; font-size: 26rpx; font-weight: 600; }
 .empty-session { padding: 36rpx 0; border-bottom: 2rpx solid #e4e0d8; }
