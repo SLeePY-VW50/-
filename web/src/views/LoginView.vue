@@ -51,63 +51,69 @@ async function login() {
       <span class="brand"><i aria-hidden="true">L</i><strong>LabSpace</strong></span>
       <router-link to="/terminal"><el-icon><Monitor /></el-icon>终端签到</router-link>
     </header>
-    <section class="gate__stage">
-      <div class="gate__copy">
-        <p class="eyebrow">高校实验室</p>
-        <h1>一天<br>四十八格。</h1>
-        <p>先看清占用、容量和审批，再决定提交预约还是去签到。</p>
+    <div class="gate__center">
+      <div class="gate__cluster">
+        <section class="gate__stage">
+          <div class="gate__copy">
+            <p class="eyebrow">高校实验室</p>
+            <h1>一天<br>四十八格。</h1>
+            <p>先看清占用、容量和审批，再决定提交预约还是去签到。</p>
+          </div>
+          <div class="gate__board" aria-hidden="true">
+            <div v-for="(band, bandIndex) in bands" :key="band.name" class="gate__band">
+              <span><strong>{{ band.name }}</strong><small>{{ band.range }}</small></span>
+              <i v-for="cell in 12" :key="cell" :class="{ on: cellOn(bandIndex, cell) }" />
+            </div>
+          </div>
+        </section>
+        <form class="gate__dock" @submit.prevent="login">
+          <div class="gate__fields">
+            <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="学号或工号"></label>
+            <label class="field"><span>密码</span><input v-model="form.password" type="password" autocomplete="current-password" placeholder="密码"></label>
+            <button class="button button--primary" type="submit" :disabled="loading">{{ loading ? '正在验证…' : '进入' }}<el-icon v-if="!loading"><ArrowRight /></el-icon></button>
+          </div>
+          <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
+          <div v-if="isDev" class="gate__dev">
+            <span>本地账号</span>
+            <button v-for="item in accounts" :key="item.account" type="button" @click="fill(item.account)">{{ item.role }} {{ item.account }}</button>
+          </div>
+        </form>
       </div>
-      <div class="gate__board" aria-hidden="true">
-        <div v-for="(band, bandIndex) in bands" :key="band.name" class="gate__band">
-          <span><strong>{{ band.name }}</strong><small>{{ band.range }}</small></span>
-          <i v-for="cell in 12" :key="cell" :class="{ on: cellOn(bandIndex, cell) }" />
-        </div>
-      </div>
-    </section>
-    <form class="gate__dock" @submit.prevent="login">
-      <div class="gate__fields">
-        <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="学号或工号"></label>
-        <label class="field"><span>密码</span><input v-model="form.password" type="password" autocomplete="current-password" placeholder="密码"></label>
-        <button class="button button--primary" type="submit" :disabled="loading">{{ loading ? '正在验证…' : '进入' }}<el-icon v-if="!loading"><ArrowRight /></el-icon></button>
-      </div>
-      <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-      <div v-if="isDev" class="gate__dev">
-        <span>本地账号</span>
-        <button v-for="item in accounts" :key="item.account" type="button" @click="fill(item.account)">{{ item.role }} {{ item.account }}</button>
-      </div>
-    </form>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.gate { min-height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--canvas); }
+.gate { min-height: 100dvh; display: flex; flex-direction: column; background: var(--canvas); }
 .gate__top { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 28px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand i { display: grid; place-items: center; width: 26px; height: 26px; color: var(--paper); background: var(--primary); border-radius: 6px; font-style: normal; font-weight: 700; }
 .brand strong { font-size: 15px; letter-spacing: -.02em; }
 .gate__top a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--body); font-size: 13px; font-weight: 600; }
 .gate__top a:hover { color: var(--primary); text-decoration: none; }
-.gate__stage { display: grid; grid-template-columns: minmax(240px, 380px) minmax(0, 1fr); gap: 36px; align-items: end; padding: 28px 36px 20px; }
+.gate__center { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: auto; padding: 28px 36px 36px; }
+.gate__cluster { width: min(1120px, 100%); margin-block: auto; display: grid; gap: 28px; }
+.gate__stage { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); gap: 36px; align-items: center; }
 .gate__copy h1 { margin: 12px 0 14px; font-size: clamp(52px, 6vw, 80px); line-height: .92; letter-spacing: -.05em; }
 .gate__copy p:last-child { max-width: 28ch; margin: 0; color: var(--body); font-size: 15px; line-height: 1.6; }
-.gate__board { display: grid; gap: 10px; align-content: end; }
+.gate__board { display: grid; gap: 10px; align-content: center; }
 .gate__band { display: grid; grid-template-columns: 52px repeat(12, minmax(0, 1fr)); gap: 6px; align-items: center; }
 .gate__band span strong, .gate__band span small { display: block; }
 .gate__band span strong { font-size: 13px; }
 .gate__band span small { color: var(--muted); font: 11px var(--mono); }
 .gate__band i { height: 42px; border: 1px solid var(--line); border-radius: 4px; background: transparent; }
 .gate__band i.on { background: var(--primary-soft); border-color: #c9e3d8; }
-.gate__dock { display: grid; gap: 10px; padding: 14px 28px 16px; background: var(--paper); border-top: 1px solid var(--line); }
-.gate__fields { display: grid; grid-template-columns: minmax(160px, 240px) minmax(160px, 240px) auto; gap: 12px; align-items: end; }
+.gate__dock { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+.gate__fields { display: grid; grid-template-columns: minmax(160px, 220px) minmax(160px, 220px) max-content; gap: 12px; align-items: end; justify-content: start; }
 .gate__dock .error-banner { margin: 0; }
 .gate__dev { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; color: var(--muted); font-size: 12px; }
 .gate__dev button { padding: 0; color: var(--body); background: none; border: 0; cursor: pointer; font-size: 12px; text-decoration: underline; }
 .gate__dev button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (max-width: 900px) {
-  .gate__stage { grid-template-columns: 1fr; gap: 22px; padding: 24px 16px 16px; }
+  .gate__center { padding: 24px 16px 28px; }
+  .gate__stage { grid-template-columns: 1fr; gap: 22px; }
   .gate__copy h1 { font-size: 48px; }
   .gate__band i { height: 22px; }
   .gate__fields { grid-template-columns: 1fr; }
-  .gate__dock { padding-inline: 16px; }
 }
 </style>
