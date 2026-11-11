@@ -68,6 +68,19 @@ export const statusLabels: Record<string, string> = {
   SCHEDULABLE: '可调度',
 }
 
+export function seatLabel(seatCode: string, labCode?: string | null) {
+  const marker = seatCode.lastIndexOf('SEAT-')
+  if (marker >= 0 && (marker === 0 || seatCode[marker - 1] === '-')) {
+    const label = seatCode.slice(marker + 'SEAT-'.length)
+    if (label) return label
+  }
+  if (labCode && seatCode.startsWith(`${labCode}-`)) {
+    const label = seatCode.slice(labCode.length + 1)
+    if (label) return label
+  }
+  return seatCode
+}
+
 export function percent(value: number | null | undefined) {
   return `${((value ?? 0) * 100).toFixed(1)}%`
 }
