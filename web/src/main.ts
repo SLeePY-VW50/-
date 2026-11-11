@@ -3,9 +3,6 @@ import { createPinia } from 'pinia'
 import {
   ElConfigProvider,
   ElDialog,
-  ElDropdown,
-  ElDropdownItem,
-  ElDropdownMenu,
   ElIcon,
   ElPagination,
   provideGlobalConfig,
@@ -13,9 +10,6 @@ import {
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/es/components/config-provider/style/css'
 import 'element-plus/es/components/dialog/style/css'
-import 'element-plus/es/components/dropdown/style/css'
-import 'element-plus/es/components/dropdown-item/style/css'
-import 'element-plus/es/components/dropdown-menu/style/css'
 import 'element-plus/es/components/icon/style/css'
 import 'element-plus/es/components/pagination/style/css'
 import './styles.css'
@@ -23,7 +17,7 @@ import App from './App.vue'
 import router from './router'
 
 const app = createApp(App)
-for (const component of [ElConfigProvider, ElDialog, ElDropdown, ElDropdownItem, ElDropdownMenu, ElIcon, ElPagination]) {
+for (const component of [ElConfigProvider, ElDialog, ElIcon, ElPagination]) {
   app.component(component.name!, component)
 }
 provideGlobalConfig({ locale: zhCn }, app, true)

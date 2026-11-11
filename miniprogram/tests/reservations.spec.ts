@@ -213,14 +213,14 @@ describe('profile page', () => {
     const { clearSession } = await import('../miniprogram/auth/storage')
     const showModal = vi.fn().mockResolvedValue({ confirm: true })
     const reLaunch = vi.fn()
-    const navigateTo = vi.fn()
-    vi.stubGlobal('wx', { showModal, reLaunch, navigateTo })
+    const switchTab = vi.fn()
+    vi.stubGlobal('wx', { showModal, reLaunch, switchTab })
     const profile = await loadProfilePage()
 
     profile.reservations()
     await profile.logout()
 
-    expect(navigateTo).toHaveBeenCalledWith({ url: '/pages/reservations/index' })
+    expect(switchTab).toHaveBeenCalledWith({ url: '/pages/reservations/index' })
     expect(showModal).toHaveBeenCalledWith(expect.objectContaining({ title: '退出登录', confirmText: '确认退出' }))
     expect(clearSession).toHaveBeenCalledOnce()
     expect(reLaunch).toHaveBeenCalledWith({ url: '/pages/login/index' })

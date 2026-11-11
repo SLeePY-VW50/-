@@ -205,27 +205,26 @@ async function submit() {
 </template>
 
 <style scoped>
-.reservation-form { display: grid; gap: 19px; }
-.mode-switch { display: flex; gap: 4px; padding: 4px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 8px; }
-.mode-switch label { flex: 1; min-height: 40px; padding: 8px 12px; color: var(--body); border: 0; border-radius: 6px; cursor: pointer; text-align: center; font-size: 14px; font-weight: 500; }
-.mode-switch label.active { color: var(--primary); background: var(--paper); font-weight: 600; }
+.reservation-form { display: grid; gap: 16px; }
+.mode-switch { display: flex; border: 1px solid var(--line); }
+.mode-switch label { flex: 1; min-height: 36px; padding: 8px 12px; color: var(--muted); border: 0; cursor: pointer; text-align: center; font-size: 14px; font-weight: 400; }
+.mode-switch label.active { color: #fff; background: var(--ink); font-weight: 500; }
 .mode-switch input { position: absolute; opacity: 0; pointer-events: none; }
-.mode-switch label:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.mode-switch label:focus-within { outline: 2px solid var(--ink); outline-offset: -2px; }
 .mode-switch--small label { padding: 8px 12px; }
-.form-note { margin: -10px 0 0; color: var(--muted); font-size: 12px; }
-.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.form-note { margin: -8px 0 0; color: var(--muted); font-size: 13px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .form-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.field { display: grid; gap: 6px; min-width: 0; color: var(--body); font-size: 13px; }
-.field input, .field select, .field textarea { width: 100%; min-height: 40px; box-sizing: border-box; padding: 8px 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; outline: none; font: 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; }
-.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgb(31 107 87 / 16%); }
-.field--invalid input, .field--invalid select, .field--invalid textarea { border-color: #e4b7b1; background: #fdf6f5; }
-.field--invalid input:focus, .field--invalid select:focus, .field--invalid textarea:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgb(196 71 58 / 16%); }
-.field input[readonly] { color: var(--muted); background: #f3f0ea; }
+.field { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 13px; }
+.field input, .field select, .field textarea { width: 100%; min-height: 44px; box-sizing: border-box; padding: 8px 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0; outline: none; font: 15px "IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--ink); box-shadow: none; }
+.field--invalid input, .field--invalid select, .field--invalid textarea { border-color: var(--ink); background: #fafafa; }
+.field--invalid input:focus, .field--invalid select:focus, .field--invalid textarea:focus { border-color: var(--ink); box-shadow: none; }
+.field input[readonly] { color: var(--muted); background: #f4f4f4; }
 .field textarea { resize: vertical; }
-.field-error { color: #9a3a30; font-size: 12px; line-height: 1.4; }
-.form-alert { padding: 11px 12px; border: 1px solid; border-radius: 6px; font-size: 13px; }
-.form-alert--error { color: #9a3a30; background: #fdf6f5; border-color: #efd0cb; }
-.form-alert--success { color: #185546; background: var(--primary-soft); border-color: #c9e3d8; }
-.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 17px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+.field-error { color: var(--ink); font-size: 12px; line-height: 1.4; }
+.form-alert { padding: 12px; border: 1px solid var(--line); font-size: 13px; }
+.form-alert--error, .form-alert--success { color: var(--ink); background: var(--paper); border-color: var(--line); }
+.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; }
 @media (max-width: 720px) { .form-grid, .form-grid--three { grid-template-columns: 1fr; } .form-actions { align-items: stretch; flex-direction: column; } .mode-switch label { padding-inline: 8px; } }
 </style>

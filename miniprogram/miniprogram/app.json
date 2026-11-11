@@ -1,19 +1,20 @@
 {
-  "pages": ["pages/home/index", "pages/labs/index", "pages/profile/index", "pages/login/index", "pages/bind/index", "pages/reservation-form/index", "pages/reservations/index", "pages/reservation-detail/index"],
+  "pages": ["pages/home/index", "pages/labs/index", "pages/reservations/index", "pages/profile/index", "pages/login/index", "pages/bind/index", "pages/reservation-form/index", "pages/reservation-detail/index"],
   "window": {
     "navigationBarTitleText": "LabSpace",
-    "navigationBarBackgroundColor": "#fbfaf7",
+    "navigationBarBackgroundColor": "#ffffff",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f3f0ea"
+    "backgroundColor": "#e6e9ee"
   },
   "tabBar": {
-    "color": "#656d67",
-    "selectedColor": "#1f6b57",
-    "backgroundColor": "#fbfaf7",
+    "color": "#737373",
+    "selectedColor": "#171717",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/home/index", "text": "首页" },
-      { "pagePath": "pages/labs/index", "text": "实验室" },
-      { "pagePath": "pages/profile/index", "text": "我的" }
+      { "pagePath": "pages/home/index", "text": "工作台" },
+      { "pagePath": "pages/labs/index", "text": "时间尺" },
+      { "pagePath": "pages/reservations/index", "text": "预约" }
     ]
   },
   "sitemapLocation": "sitemap.json"

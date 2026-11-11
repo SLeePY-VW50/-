@@ -77,6 +77,6 @@ onMounted(loadLabs)
 
 <style scoped>
 .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.admin-form { display: grid; gap: 14px; max-width: 520px; }.admin-form small { color: var(--muted); }.status-select, .lab-picker { min-height: 40px; padding: 8px 10px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; outline: none; font-size: 14px; }.status-select:focus, .lab-picker:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgb(31 107 87 / 16%); }
+.admin-form { display: grid; gap: 14px; max-width: 520px; }.admin-form small { color: var(--muted); }.status-select, .lab-picker { min-height: 40px; padding: 8px 10px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0; outline: none; font-size: 14px; }.status-select:focus, .lab-picker:focus { border-color: var(--ink); box-shadow: none; }
 @media (max-width: 900px) { .admin-grid { grid-template-columns: 1fr; } }
 </style>

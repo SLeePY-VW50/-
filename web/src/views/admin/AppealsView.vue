@@ -36,5 +36,5 @@ onMounted(load)
 </template>
 
 <style scoped>
-.appeal-list { display: grid; gap: 13px; }.appeal-item { padding: 16px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 6px; }.appeal-item__meta { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 12px; }.appeal-item small { display: block; margin-top: 6px; }.appeal-actions { justify-content: flex-end; margin-top: 18px; }.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.appeal-list { display: grid; gap: 13px; }.appeal-item { padding: 16px; background: var(--paper); border-bottom: 1px solid var(--line); }.appeal-item__meta { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 12px; }.appeal-item small { display: block; margin-top: 6px; }.appeal-actions { justify-content: flex-end; margin-top: 18px; }.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 </style>

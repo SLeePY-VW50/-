@@ -133,15 +133,15 @@ onMounted(async () => {
 .table-wrap .data-table td:last-child .button-row { flex-wrap: nowrap; }
 .batch-no { display: block; margin-top: 4px; }
 .seat-list { display: flex; flex-wrap: wrap; gap: 9px; }
-.seat-chip { display: grid; gap: 4px; min-width: 110px; padding: 10px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 6px; }
+.seat-chip { display: grid; gap: 4px; min-width: 110px; padding: 10px; background: var(--paper); border: 1px solid var(--line); }
 .seat-chip small { color: var(--muted); }.seat-chip i { color: var(--amber); font-size: 10px; font-style: normal; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 .batch-common { display: grid; grid-template-columns: 1.4fr 1.4fr .6fr; gap: 12px; }
 .batch-purpose { margin-top: 13px; }
 .batch-heading { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 11px; font-size: 13px; }
 .batch-items { display: grid; gap: 8px; max-height: 360px; overflow: auto; }
-.batch-item { display: grid; grid-template-columns: 30px 1.2fr 1fr 20px 1fr auto; gap: 8px; align-items: center; padding: 7px; background: #f7f4ee; border-radius: 6px; }
-.batch-item input, .batch-item select { min-width: 0; min-height: 40px; padding: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
+.batch-item { display: grid; grid-template-columns: 30px 1.2fr 1fr 20px 1fr auto; gap: 8px; align-items: center; padding: 7px; background: transparent; border-bottom: 1px solid var(--line); }
+.batch-item input, .batch-item select { min-width: 0; min-height: 40px; padding: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 0; }
 @media (max-width: 700px) {
   .batch-common { grid-template-columns: 1fr; }
   .batch-item { grid-template-columns: 24px 1fr; }

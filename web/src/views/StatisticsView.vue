@@ -82,8 +82,8 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); trendChart
 </template>
 
 <style scoped>
-.statistics-switch { display: inline-flex; gap: 4px; margin-bottom: 16px; padding: 4px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 8px; }
-.statistics-switch button { min-height: 40px; padding: 8px 14px; color: var(--body); background: transparent; border: 0; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
-.statistics-switch button.active { color: var(--primary); background: var(--paper); font-weight: 600; }
-.statistics-switch button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.statistics-switch { display: inline-flex; margin-bottom: 16px; border: 1px solid var(--line); }
+.statistics-switch button { min-height: 36px; padding: 8px 16px; color: var(--muted); background: transparent; border: 0; cursor: pointer; font-size: 14px; }
+.statistics-switch button.active { color: #fff; background: var(--ink); font-weight: 500; }
+.statistics-switch button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 </style>
