@@ -1,0 +1,91 @@
+@startuml
+' 现状源稿：按 main 实际类名改写的提交预约顺序图。不覆盖同目录 05_sequence_reservation.puml。
+' 已按 ReservationController / ReservationService / ReservationTransactionService 核实。
+' 样式引用相对于 doc/uml/oo-design/。
+!include ../_style.inc.puml
+!pragma layout smetana
+title 图4-2（现状稿）提交预约顺序图（固定 / 可调度分流）
+
+skinparam maxMessageSize 170
+skinparam ParticipantPadding 10
+skinparam BoxPadding 7
+
+actor "学生 / 教师" as user
+participant "Web / 微信小程序" as web
+participant "ReservationController" as ctrl
+participant "ReservationService" as svc
+participant "ReservationRequestValidator" as val
+participant "RuleValidator" as rule
+participant "BitmapConflictDetector" as det
+participant "RedisLockManager" as lock
+participant "ReservationTransactionService" as tx
+participant "ReservationRepository" as repo
+database "MySQL" as db
+database "Redis" as redis
+
+user -> web : 提交分配模式、粒度、时段、人数与偏好
+web -> ctrl : POST /api/reservations\nBearer JWT
+ctrl -> svc : create(userId, request)
+svc -> val : normalize(request)
+val --> svc : NormalizedReservation（含 TimeSlotMask）
+
+alt SCHEDULABLE 可调度需求
+  svc -> tx : createSchedulable(userId, request)
+  tx -> repo : 校验用户状态与信用、候选实验室规则
+  repo -> db
+  tx -> db : INSERT 预约单(PENDING_SCHEDULE) + 初始日志
+  db --> tx : 提交成功（不占位、不加实验室日期锁）
+  tx --> svc : reservationId
+  svc --> ctrl : ReservationView(待排期)
+else FIXED 固定时空预约
+  svc -> lock : acquireAll(labId, date)
+  lock -> redis : SET NX resv:lab:{labId}:{date}
+  alt 获取锁失败
+    lock --> svc : 超时
+    svc --> ctrl : 当前预约高峰，请稍后重试
+  else 获取锁成功
+    lock --> svc : ReservationLock(token)
+    svc -> tx : createFixed(userId, request)
+    tx -> db : BEGIN
+    tx -> repo : 锁用户、检查重叠、确保并锁定整室日位图行
+    repo -> db : SELECT ... FOR UPDATE
+    tx -> repo : 加载整室掩码与工位日位图
+    tx -> rule : 校验开放规则、时长与容量
+    tx -> det : detect(ResourceSnapshot, ConflictQuery)
+    alt 整室申请
+      det -> det : Q AND (R OR 全部 S[i])
+    else 工位申请
+      det -> det : 先 Q AND R，再 GreedySeatAllocator 选 K 个工位
+    end
+    alt 冲突或可用工位不足
+      det --> tx : 失败
+      tx -> db : ROLLBACK
+      tx --> svc : 业务冲突
+      svc --> ctrl : 预约时段冲突或可用工位不足
+    else 检测通过
+      det --> tx : 入选工位（整室则全部 ACTIVE 工位）
+      tx -> db : INSERT 预约单(APPROVED)\n+ t_reservation_seat + 位图条件更新 + 日志
+      alt 写入失败或影响行数不符
+        db --> tx : 异常
+        tx -> db : ROLLBACK
+        tx --> svc : 失败
+      else 全部成功
+        db --> tx : COMMIT
+        tx --> svc : reservationId
+        svc --> ctrl : ReservationView(已通过)
+      end
+    end
+    svc -> lock : finally：按 token 释放锁
+    lock -> redis : Lua 比较后 DEL
+  end
+end
+
+ctrl --> web : ApiResponse{code, message, data}
+web --> user : 展示已通过 / 待排期 / 失败原因
+
+note over det,repo
+  主路径使用 BitmapConflictDetector，不是顺序图旧名 ConflictDetector。
+  数据访问通过 ReservationRepository，不是 BitmapDao / SeatBitmapMapper。
+  已通过预约与正式分配、位图、日志在同一事务提交。
+end note
+@enduml
