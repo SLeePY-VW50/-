@@ -4,9 +4,9 @@ import { echarts, type EChartsOption, type EChartsType } from '../charts'
 import { chartAxis, chartLegend, chartPalette, chartSplit, chartTooltip } from '../chartTheme'
 import { ArrowRight, CircleCheck } from '@element-plus/icons-vue'
 import http, { errorMessage } from '../api/http'
-import type { DashboardData, Page, Reservation } from '../types'
+import type { DashboardData, Lab, LabRules, Page, Reservation } from '../types'
 import { useAuthStore } from '../stores/auth'
-import { percent, reservationTime, statusLabels, timeOnly, today } from '../utils'
+import { addDays, percent, reservationTime, statusLabels, timeOnly, toDateInput, today } from '../utils'
 import EmptyState from '../components/EmptyState.vue'
 
 const auth = useAuthStore()
@@ -42,6 +42,74 @@ const upcoming = computed(() => {
 })
 const focusReservation = computed(() => upcoming.value[0] || null)
 const laterItems = computed(() => upcoming.value.slice(1, 8))
+const recentItems = computed(() => {
+  const upcomingIds = new Set(upcoming.value.map((item) => item.resvId))
+  return reservations.value
+    .filter((item) => !upcomingIds.has(item.resvId))
+    .sort((a, b) => {
+      const left = a.startTime || `${a.date}T${timeOnly(a.windowStart)}`
+      const right = b.startTime || `${b.date}T${timeOnly(b.windowStart)}`
+      return right.localeCompare(left)
+    })
+    .slice(0, 4)
+})
+
+interface OpenWindow {
+  labId: number
+  labName: string
+  location: string
+  date: string
+  open: string
+  close: string
+}
+
+const openWindows = ref<OpenWindow[]>([])
+
+function weekday(date: string) {
+  return new Date(`${date}T00:00:00`).getDay() || 7
+}
+
+function minutes(value: string) {
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function nextOpenWindow(lab: Lab, rules: LabRules, day: string, now = new Date()): OpenWindow | null {
+  if (lab.status !== 'ACTIVE') return null
+  const todayText = toDateInput(now)
+  for (let offset = 0; offset <= 14; offset += 1) {
+    const date = addDays(day, offset)
+    const rule = rules.weeklyRules.find((item) => item.dayOfWeek === weekday(date))
+    if (!rule || offset < rule.advanceMinDays || offset > rule.advanceMaxDays) continue
+    const open = timeOnly(rule.openTime)
+    const close = timeOnly(rule.closeTime, true)
+    const stillAhead = date > todayText || (date === todayText && minutes(close) > now.getHours() * 60 + now.getMinutes())
+    if (!stillAhead) continue
+    return { labId: lab.labId, labName: lab.name, location: lab.location, date, open, close }
+  }
+  return null
+}
+
+async function readOpenWindows(day: string) {
+  try {
+    const labs = await http.get<Lab[]>('/api/labs')
+    const found = await Promise.all(labs.filter((lab) => lab.status === 'ACTIVE').map(async (lab) => {
+      try {
+        const rules = await http.get<LabRules>(`/api/labs/${lab.labId}/rules`)
+        return nextOpenWindow(lab, rules, day)
+      } catch {
+        return null
+      }
+    }))
+    return found
+      .filter((item): item is OpenWindow => item !== null)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.open.localeCompare(b.open) || a.labId - b.labId)
+      .slice(0, 4)
+  } catch {
+    return []
+  }
+}
+
 const todayCount = computed(() => {
   const day = data.value?.date || today()
   return upcoming.value.filter((item) => item.date === day).length
@@ -85,6 +153,8 @@ async function load() {
     data.value = dashboard as DashboardData
     const page = extra as Page<Reservation> | null
     reservations.value = Array.isArray(page?.items) ? page.items : []
+    openWindows.value = []
+    if (isLearner.value && !upcoming.value.length) openWindows.value = await readOpenWindows(data.value.date || today())
     loading.value = false
     await nextTick()
     renderChart()
@@ -154,14 +224,18 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dis
               <router-link class="button" to="/reservations">预约详情</router-link>
             </div>
           </template>
-          <template v-else>
-            <h2 class="session__empty-title">今天还没有下一场</h2>
-            <p class="session__purpose">从时间尺选一段开放时段，提交后会出现在这里。</p>
-            <router-link class="button button--primary" to="/labs">去时间尺预约</router-link>
-          </template>
+          <EmptyState v-else class="session__guide" title="今天还没有下一场" description="从时间尺选一段开放时段，提交后会出现在这里。">
+            <ol class="path" aria-label="预约步骤">
+              <li v-for="(step, index) in focusJourney" :key="step.label" :class="{ current: step.current }">
+                <span>{{ index + 1 }}</span>
+                {{ step.label }}
+              </li>
+            </ol>
+            <router-link class="button button--primary" to="/labs">去时间尺预约<el-icon><ArrowRight /></el-icon></router-link>
+          </EmptyState>
         </article>
 
-        <section class="timeline" aria-labelledby="later-title">
+        <section v-if="focusReservation" class="timeline" aria-labelledby="later-title">
           <h2 id="later-title">随后</h2>
           <p v-if="!laterItems.length" class="timeline__empty">没有更晚的待执行预约。</p>
           <ol v-else>
@@ -173,6 +247,34 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dis
               </div>
             </li>
           </ol>
+        </section>
+        <section v-else class="timeline" aria-label="近期安排">
+          <template v-if="recentItems.length">
+            <h2>近期预约</h2>
+            <ol>
+              <li v-for="item in recentItems" :key="item.resvId">
+                <time class="mono">{{ clock(item) }}</time>
+                <div>
+                  <strong>{{ item.labName || '待分配实验室' }}</strong>
+                  <span>{{ item.date }} · {{ statusLabels[item.status] }}</span>
+                </div>
+              </li>
+            </ol>
+          </template>
+          <template v-if="openWindows.length">
+            <h2>即将开放</h2>
+            <p class="timeline__note">下一个可预约日的开放时段，空位以时间尺为准。</p>
+            <ol>
+              <li v-for="item in openWindows" :key="`${item.labId}-${item.date}`">
+                <time class="mono">{{ item.open }}</time>
+                <div>
+                  <strong>{{ item.labName }}</strong>
+                  <span>{{ item.date }} · {{ item.open }}–{{ item.close }}<template v-if="item.location"> · {{ item.location }}</template></span>
+                </div>
+              </li>
+            </ol>
+          </template>
+          <p v-if="!recentItems.length && !openWindows.length" class="timeline__empty">近期没有预约记录，也没有读到开放时段。</p>
         </section>
       </section>
 
@@ -264,7 +366,17 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dis
 .session { padding: 8px 0 28px; border-bottom: 1px solid var(--line); }
 .session__kicker { margin: 0; color: var(--primary); font-size: 13px; font-weight: 650; letter-spacing: .04em; }
 .session__time { margin: 8px 0 0; font-size: clamp(56px, 7vw, 84px); line-height: .9; letter-spacing: -.05em; }
-.session h2, .session__empty-title { margin: 10px 0 8px; font-size: 28px; }
+.session h2 { margin: 10px 0 8px; font-size: 28px; }
+.session :deep(.session__guide) { justify-items: start; margin-top: 16px; text-align: left; }
+.session :deep(.session__guide strong) { font-size: 28px; font-weight: 700; letter-spacing: -.03em; }
+.session :deep(.empty-state__mark i:nth-child(1)),
+.session :deep(.empty-state__mark i:nth-child(2)),
+.session :deep(.empty-state__mark i:nth-child(3)),
+.session :deep(.empty-state__mark i:nth-child(4)) { background: var(--primary); }
+.session :deep(.empty-state__mark i:nth-child(1)) { opacity: .38; }
+.session :deep(.empty-state__mark i:nth-child(2)) { opacity: 1; }
+.session :deep(.empty-state__mark i:nth-child(3)) { opacity: .68; }
+.session :deep(.empty-state__mark i:nth-child(4)) { opacity: .48; }
 .session__meta, .session__purpose { margin: 0; color: var(--body); font-size: 14px; line-height: 1.6; }
 .session__purpose { margin-top: 6px; max-width: 46ch; }
 .path { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
@@ -277,6 +389,8 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dis
 .timeline { padding-top: 22px; }
 .timeline h2, .side-chart h2, .desk__queue > h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: .06em; text-transform: none; color: var(--muted); font-weight: 650; }
 .timeline__empty { margin: 0; color: var(--muted); font-size: 14px; }
+.timeline__note { max-width: 52ch; margin: 0 0 4px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.timeline h2:not(:first-child) { margin-top: 22px; }
 .timeline ol, .queue-list { margin: 0; padding: 0; list-style: none; }
 .timeline li, .queue-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
 .timeline time, .queue-list time { color: var(--ink); font-size: 14px; }
