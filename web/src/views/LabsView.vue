@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import http, { errorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import type { Lab, LabAvailability, LabRules } from '../types'
-import { addDays, statusLabels, timeOnly, today } from '../utils'
+import { addDays, seatLabel, statusLabels, timeOnly, today } from '../utils'
 import SlotGrid, { type SlotRange } from '../components/SlotGrid.vue'
 import ReservationForm from '../components/ReservationForm.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -133,7 +133,7 @@ onMounted(loadLabs)
       </div>
       <div v-if="gridMode === 'SEAT' && availability?.seats.length" class="seats">
         <div class="seat-row">
-          <button v-for="seat in availability.seats" :key="seat.seatId" type="button" class="seat" disabled :title="`${seat.zoneCode} · ${seat.specLevel} · ${seat.nearWindow ? '靠窗' : '不靠窗'} · ${statusLabels[seat.status]}`">{{ seat.seatCode }}</button>
+          <span v-for="seat in availability.seats" :key="seat.seatId" class="seat" :title="`${seat.seatCode} · ${seat.zoneCode} · ${seat.specLevel} · ${seat.nearWindow ? '靠窗' : '不靠窗'} · ${statusLabels[seat.status]}`">{{ seatLabel(seat.seatCode, selectedLab?.code) }}</span>
         </div>
         <p class="seat-note">工位余量显示在开放格右侧。具体工位在提交后分配，这里只供查看。</p>
       </div>
@@ -170,25 +170,25 @@ onMounted(loadLabs)
 .sub { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .month { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .month__nav { display: flex; gap: 8px; }
-.month__nav button, .hints { padding: 0; color: var(--muted); background: none; border: 0; cursor: pointer; font-size: 12px; }
+.month__nav button, .hints { appearance: none; padding: 0; color: var(--muted); background: none; border: 0; border-radius: 0; cursor: pointer; font-size: 12px; }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
 .wd { padding: 4px 0; color: var(--faint); font-size: 12px; }
-.cal button { display: flex; align-items: center; justify-content: center; height: 28px; color: var(--ink); background: none; border: 0; cursor: pointer; font-size: 12px; }
+.cal button { appearance: none; display: flex; align-items: center; justify-content: center; height: 28px; color: var(--ink); background: none; border: 0; border-radius: 0; cursor: pointer; font-size: 12px; }
 .cal button.on { background: var(--ink); color: #fff; }
 .cal button.other { color: transparent; cursor: default; }
-.seg { display: flex; border: 1px solid var(--line); }
-.seg button { flex: 1; height: 36px; color: var(--muted); background: none; border: 0; cursor: pointer; font-size: 14px; }
+.seg { display: flex; flex-shrink: 0; border: 1px solid var(--line); }
+.seg button { appearance: none; flex: 1; height: 36px; color: var(--muted); background: var(--paper); border: 0; border-radius: 0; cursor: pointer; font-size: 14px; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
-.seats { display: flex; flex-direction: column; gap: 8px; }
-.seat-row { display: flex; flex-wrap: wrap; gap: 4px; }
-.seat { width: 32px; height: 32px; padding: 0; color: var(--muted); background: var(--paper); border: 1px solid var(--line); font-size: 11px; }
+.seats { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.seat-row { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; }
+.seat { display: flex; align-items: center; justify-content: center; box-sizing: border-box; max-width: 100%; min-width: 32px; min-height: 28px; padding: 4px 6px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: 0; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
 .seat-note, .rules { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
 .seat-note { font-size: 12px; }
 .rules p { margin: 0; }
 .rules p + p { margin-top: 4px; }
 .range { min-height: 24px; color: var(--muted); font-size: 14px; }
 .range.active { color: var(--ink); font-weight: 500; }
-.go { width: 100%; height: 44px; margin-top: 12px; color: #fff; background: var(--ink); border: 0; cursor: pointer; font-size: 15px; font-weight: 500; }
+.go { appearance: none; width: 100%; height: 44px; margin-top: 12px; color: #fff; background: var(--ink); border: 0; border-radius: 0; cursor: pointer; font-size: 15px; font-weight: 500; }
 .ruler-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--paper); }
 .main-head { display: flex; align-items: center; justify-content: space-between; height: 48px; flex: 0 0 auto; padding: 0 24px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 .main-head b { color: var(--ink); font-weight: 500; }
