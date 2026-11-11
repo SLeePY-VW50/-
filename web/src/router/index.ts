@@ -19,7 +19,7 @@ const router = createRouter({
       path: '/',
       component: () => import('../layouts/AppLayout.vue'),
       children: [
-        { path: '', redirect: '/dashboard' },
+        { path: '', redirect: '/labs' },
         { path: 'dashboard', name: 'dashboard', component: () => import('../views/DashboardView.vue'), meta: { title: '工作台', roles: ['STUDENT', 'TEACHER', 'LAB_ADMIN', 'SYS_ADMIN'] } },
         { path: 'labs', name: 'labs', component: () => import('../views/LabsView.vue'), meta: { title: '实验室与预约', roles: ['STUDENT', 'TEACHER', 'LAB_ADMIN', 'SYS_ADMIN'] } },
         { path: 'reservations', name: 'reservations', component: () => import('../views/ReservationsView.vue'), meta: { title: '预约记录', roles: ['STUDENT', 'TEACHER', 'LAB_ADMIN', 'SYS_ADMIN'] } },
@@ -33,7 +33,7 @@ const router = createRouter({
         { path: 'admin/appeals', name: 'admin-appeals', component: () => import('../views/admin/AppealsView.vue'), meta: { title: '申诉核定', roles: ['SYS_ADMIN'] } },
       ],
     },
-    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
+    { path: '/:pathMatch(.*)*', redirect: '/labs' },
   ],
 })
 

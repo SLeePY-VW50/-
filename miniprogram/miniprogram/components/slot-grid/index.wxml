@@ -1,6 +1,6 @@
 <wxs module="board">
 var NAMES = ['凌晨', '上午', '下午', '晚间']
-var RANGES = ['00–06', '06–12', '12–18', '18–24']
+var RANGES = ['00:00–06:00', '06:00–12:00', '12:00–18:00', '18:00–24:00']
 function minute(value, end) {
   if (!value) return 0
   if (end && value.indexOf('24:00') === 0) return 1440
@@ -47,18 +47,15 @@ module.exports.closed = closed
 module.exports.used = used
 module.exports.mark = mark
 </wxs>
-<view wx:if="{{mode === 'SEAT'}}" class="legend legend--seat"><text class="legend__free">空闲</text><text class="legend__part">部分占用</text><text class="legend__full">已满</text></view>
-<view wx:else class="legend"><text class="legend__open">可约</text><text class="legend__busy">占用</text><text class="legend__pick">选中</text></view>
-<view class="slot-board {{mode === 'SEAT' ? 'slot-board--seat' : 'slot-board--room'}}">
-  <view wx:for="{{board.group(slots)}}" wx:for-item="band" wx:key="range" class="slot-band">
-    <view class="slot-band__label"><text>{{band.name}}</text><text>{{band.range}}</text></view>
-    <view class="slot-grid">
-      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="slot {{mode === 'SEAT' ? 'slot--seat' : 'slot--room'}} {{slot.index % 2 === 0 ? 'slot--hour' : ''}} {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'slot--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'slot--disabled' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'slot--closed' : ''}}" data-index="{{slot.index}}" bindtap="select">
-        <text>{{slot.start}}</text>
-        <text wx:if="{{mode === 'SEAT' && !board.closed(slot.index, openTime, closeTime)}}" class="slot__count">{{slot.availableSeatCount}}</text>
-        <view wx:if="{{mode === 'SEAT' && !board.closed(slot.index, openTime, closeTime)}}" class="meter"><view class="meter__fill" style="width: {{board.used(slot)}}%;"></view></view>
-        <text wx:if="{{mode !== 'SEAT' && board.mark(slot, selection)}}" class="slot__meta">{{board.mark(slot, selection)}}</text>
+<view class="periods">
+  <view wx:for="{{board.group(slots)}}" wx:for-item="band" wx:for-index="pi" wx:key="range" class="period">
+    <view class="period-h"><text class="period-h__name">{{band.name}}</text><text class="period-h__range">{{band.range}}</text></view>
+    <view class="slots">
+      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="cell {{slot.index % 2 === 0 ? 'cell--hour' : ''}} {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'cell--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'cell--occupied' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'cell--closed' : ''}}" data-index="{{slot.index}}" bindtap="select">
+        <text wx:if="{{!board.closed(slot.index, openTime, closeTime)}}">{{slot.start}}</text>
+        <text wx:if="{{mode === 'SEAT' && !board.closed(slot.index, openTime, closeTime) && slot.availableSeatCount > 0}}" class="cell__count">{{slot.availableSeatCount}}</text>
       </view>
+      <view wx:if="{{pi === nowPeriod}}" class="now-line" style="top: {{nowTop}};"><text>{{nowLabel}}</text></view>
     </view>
   </view>
 </view>

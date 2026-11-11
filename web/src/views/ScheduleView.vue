@@ -119,7 +119,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .experiment-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; font-size: 12px; }
 .summary-title { margin-top: 24px; font-size: 14px; }
 .genetic-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.genetic-summary div { padding: 12px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 6px; }
+.genetic-summary div { padding: 12px; background: transparent; border-bottom: 1px solid var(--line); }
 .genetic-summary span, .genetic-summary strong { display: block; font-size: 11px; }
 .genetic-summary span { margin-bottom: 7px; color: var(--muted); }
 @media (max-width: 1200px) { .metrics-grid--five, .genetic-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
