@@ -22,7 +22,7 @@
   </view>
   <view wx:if="{{loading}}" class="loading">正在读取开放规则与占用情况</view>
   <block wx:elif="{{availability}}">
-    <slot-grid wx:if="{{dayRule && availability.slots.length}}" slots="{{availability.slots}}" mode="{{mode}}" openTime="{{openTime}}" closeTime="{{closeTime}}" selection="{{selection}}" bind:change="onSelection" />
+    <slot-grid wx:if="{{dayRule && availability.slots.length}}" slots="{{availability.slots}}" mode="{{mode}}" openTime="{{openTime}}" closeTime="{{closeTime}}" date="{{date}}" selection="{{selection}}" bind:change="onSelection" />
     <view wx:elif="{{dayRule}}" class="empty">当日暂无可显示的时间片</view>
     <view wx:if="{{dayRule}}" class="muted rule-note">开放 {{openTime}}–{{closeTime}} · 预约 {{dayRule.minDurationMinutes}}–{{dayRule.maxDurationMinutes}} 分钟 · 提前 {{dayRule.advanceMinDays}}–{{dayRule.advanceMaxDays}} 天</view>
     <view wx:else class="empty">当日未开放</view>

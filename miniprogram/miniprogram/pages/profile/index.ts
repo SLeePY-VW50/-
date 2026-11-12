@@ -25,7 +25,7 @@ Page({
     }
   },
   reservations() {
-    wx.navigateTo({ url: '/pages/reservations/index' })
+    wx.switchTab({ url: '/pages/reservations/index' })
   },
   async logout() {
     const result = await wx.showModal({

@@ -1,15 +1,15 @@
 .page-title { font-size: 40rpx; font-weight: 700; }
 .page-subtitle { margin: 10rpx 0 28rpx; }
 .form-card { padding: 26rpx; }
-.segment { display: flex; margin-bottom: 22rpx; padding: 6rpx; background: #efece6; border-radius: 12rpx; }
-.segment text { display: flex; flex: 1; min-width: 96rpx; min-height: 96rpx; padding: 12rpx 24rpx; color: #656d67; text-align: center; align-items: center; justify-content: center; }
-.segment .active { color: #1f6b57; background: #fbfaf7; border-radius: 8rpx; font-weight: 700; }
-.form-row { display: flex; min-height: 96rpx; align-items: center; justify-content: space-between; gap: 20rpx; border-bottom: 2rpx solid #e4e0d8; }
+.segment { display: flex; margin-bottom: 22rpx; border: 2rpx solid #ececec; }
+.segment text { display: flex; flex: 1; min-width: 96rpx; min-height: 96rpx; padding: 12rpx 24rpx; color: #525252; text-align: center; align-items: center; justify-content: center; }
+.segment .active { color: #ffffff; background: #171717; font-weight: 500; }
+.form-row { display: flex; min-height: 96rpx; align-items: center; justify-content: space-between; gap: 20rpx; border-bottom: 2rpx solid #ececec; }
 .field-label { flex-shrink: 0; font-weight: 600; }
 .form-input { flex: 1; min-height: 96rpx; text-align: right; }
 .form-note { margin: 10rpx 0 20rpx; font-size: 23rpx; }
 .purpose-label { display: block; margin-top: 24rpx; }
-.purpose { width: 100%; min-height: 160rpx; margin-top: 12rpx; padding: 20rpx; background: #fbfaf7; border: 2rpx solid #e4e0d8; border-radius: 12rpx; }
+.purpose { width: 100%; min-height: 160rpx; margin-top: 12rpx; padding: 20rpx; background: #ffffff; border: 2rpx solid #ececec; }
 .error { margin-top: 24rpx; }
-.success { margin: 24rpx 0 20rpx; padding: 22rpx; color: #185546; background: #e7f3ee; border-radius: 12rpx; }
+.success { margin: 24rpx 0 20rpx; padding: 22rpx; color: #171717; background: #ffffff; border: 2rpx solid #ececec; }
 .submit-button { min-height: 96rpx; margin-top: 24rpx; line-height: 96rpx; }

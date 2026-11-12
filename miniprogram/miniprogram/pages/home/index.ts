@@ -77,7 +77,10 @@ Page({
     wx.switchTab({ url: '/pages/labs/index' })
   },
   reservations() {
-    wx.navigateTo({ url: '/pages/reservations/index' })
+    wx.switchTab({ url: '/pages/reservations/index' })
+  },
+  profile() {
+    wx.navigateTo({ url: '/pages/profile/index' })
   },
   openNext() {
     if (this.data.next) wx.navigateTo({ url: `/pages/reservation-detail/index?id=${this.data.next.resvId}` })

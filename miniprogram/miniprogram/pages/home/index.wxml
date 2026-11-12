@@ -16,7 +16,7 @@
   <view wx:if="{{loading}}" class="loading" aria-live="polite">正在加载首页预约</view>
   <view wx:if="{{!next && !loading && !error}}" class="empty-session">
     <view class="empty-session__title">今天还没有下一场</view>
-    <view class="muted">去实验室选择开放时段。</view>
+    <view class="muted">去时间尺选择开放时段。</view>
   </view>
   <view wx:if="{{recent.length}}" class="section-title">待排期</view>
   <view wx:for="{{recent}}" wx:key="resvId" class="later">
@@ -24,7 +24,8 @@
     <view class="muted">{{item.timeText}}</view>
   </view>
   <view class="links">
-    <button class="link" bindtap="labs">预约实验室<text>查看实时空闲时段</text></button>
-    <button class="link" bindtap="reservations">我的预约<text>详情、取消与签退</text></button>
+    <button class="link" bindtap="labs">时间尺<text>查看开放时段</text></button>
+    <button class="link" bindtap="reservations">预约<text>详情、取消与签退</text></button>
+    <button class="link" bindtap="profile">账号<text>身份与退出</text></button>
   </view>
 </view>

@@ -23,5 +23,5 @@ onMounted(load)
 </template>
 
 <style scoped>
-.user-search { min-width: min(360px, 100%); }select { min-height: 40px; padding: 8px 10px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; outline: none; font-size: 14px; }select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgb(31 107 87 / 16%); }
+.user-search { min-width: min(360px, 100%); }select { min-height: 40px; padding: 8px 10px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0; outline: none; font-size: 14px; }select:focus { border-color: var(--ink); box-shadow: none; }
 </style>

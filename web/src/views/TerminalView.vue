@@ -82,7 +82,7 @@ timer = setInterval(() => {
 
 <template>
   <main class="terminal-page">
-    <header class="terminal-header"><div class="terminal-brand"><span>L</span><div><strong>实验室签到终端</strong><small>公共签到 · 不创建桌面会话</small></div></div><router-link to="/login">工作人员登录</router-link></header>
+    <header class="terminal-header"><div class="terminal-brand"><strong>LabSpace</strong><small>签到终端 · 不创建桌面会话</small></div><router-link to="/login">工作人员登录</router-link></header>
     <section class="terminal-workspace">
       <div class="terminal-intro"><span class="eyebrow">签到终端</span><h1>到场签到</h1><p>此页面不会创建学生桌面会话。终端与账号分步验证，密码和终端秘密不会被回显。</p><div class="terminal-steps" aria-label="签到步骤"><span :class="{ active: step === 'session' }">1 终端验证</span><span :class="{ active: step === 'account' || step === 'choice' }">2 账号签到</span><span :class="{ active: step === 'success' }">3 完成</span></div></div>
       <div class="terminal-card">
@@ -100,42 +100,40 @@ timer = setInterval(() => {
 
 <style scoped>
 .terminal-page { min-height: 100dvh; display: flex; flex-direction: column; background: var(--canvas); }
-.terminal-header { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 24px; background: var(--paper); border-bottom: 1px solid var(--line); }
-.terminal-brand { display: flex; align-items: center; gap: 10px; }
-.terminal-brand > span { display: grid; place-items: center; width: 28px; height: 28px; color: var(--paper); background: var(--primary); border-radius: 6px; font-size: 15px; font-weight: 700; }
-.terminal-brand strong, .terminal-brand small { display: block; }
-.terminal-brand strong { color: var(--ink); font-size: 14px; font-weight: 700; }
-.terminal-brand small { margin-top: 1px; color: var(--muted); font-size: 11px; }
-.terminal-header a { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 12px; color: var(--body); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; font-size: 13px; font-weight: 600; }
-.terminal-header a:hover { color: var(--primary); background: #f7f4ee; text-decoration: none; }
+.terminal-header { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 24px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.terminal-brand { display: flex; align-items: baseline; gap: 12px; }
+.terminal-brand strong { color: var(--ink); font-size: 16px; font-weight: 600; }
+.terminal-brand small { color: var(--muted); font-size: 13px; }
+.terminal-header a { color: var(--muted); font-size: 14px; }
+.terminal-header a:hover { color: var(--ink); text-decoration: none; }
 .terminal-workspace { display: grid; gap: 18px; width: min(480px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 40px; }
-.terminal-intro h1 { margin: 8px 0 8px; font-size: 32px; letter-spacing: -.04em; }
+.terminal-intro h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
 .terminal-intro > p { margin: 0; color: var(--body); font-size: 14px; line-height: 1.65; }
 .terminal-steps { display: flex; gap: 8px; margin-top: 16px; }
-.terminal-steps span { min-height: 32px; padding: 6px 8px; color: var(--muted); background: transparent; border-bottom: 2px solid var(--line); font-size: 12px; font-weight: 600; }
-.terminal-steps span.active { color: var(--primary); border-bottom-color: var(--primary); }
-.terminal-card { padding: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
-.terminal-session { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 16px; padding: 12px; background: #f7f4ee; border: 1px solid var(--line); border-radius: 6px; }
+.terminal-steps span { min-height: 32px; padding: 6px 0; color: var(--muted); background: transparent; border-bottom: 1px solid transparent; font-size: 13px; }
+.terminal-steps span.active { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
+.terminal-card { padding: 0; background: transparent; border: 0; }
+.terminal-session { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 16px; padding: 12px 0; background: transparent; border-bottom: 1px solid var(--line); }
 .terminal-session span, .terminal-session strong, .terminal-session small { display: block; }
 .terminal-session span { color: var(--muted); font-size: 12px; }
 .terminal-session strong { margin: 2px 0; color: var(--ink); font-size: 14px; }
 .terminal-session small { color: var(--muted); font-size: 12px; }
 .session-clock { text-align: right; }
-.session-clock strong { color: var(--primary); font-size: 18px; }
-.terminal-form { display: grid; gap: 14px; }
-.terminal-form h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+.session-clock strong { color: var(--ink); font-size: 18px; }
+.terminal-form { display: grid; gap: 12px; }
+.terminal-form h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .terminal-form > p { margin: 0; color: var(--body); font-size: 14px; line-height: 1.55; }
 .terminal-submit { min-height: 44px; }
 .choice-list { display: grid; gap: 8px; max-height: 270px; overflow-y: auto; }
-.choice-list label { display: flex; gap: 10px; min-height: 44px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
-.choice-list label.selected { background: var(--primary-soft); border-color: var(--primary); }
+.choice-list label { display: flex; gap: 10px; min-height: 44px; padding: 10px 0; background: transparent; border-bottom: 1px solid var(--line); cursor: pointer; }
+.choice-list label.selected { color: var(--ink); font-weight: 500; }
 .choice-list input { accent-color: var(--primary); }
 .choice-list strong, .choice-list small { display: block; }
 .choice-list strong { font-size: 13px; }
 .choice-list small { margin-top: 4px; color: var(--muted); font-size: 12px; }
 .terminal-success { text-align: center; }
-.success-mark { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 4px; color: var(--paper); background: var(--primary); border-radius: 6px; font-size: 26px; }
-.terminal-success .detail-list { margin: 8px 0 0; padding: 12px; background: #f7f4ee; border-radius: 6px; text-align: left; }
+.success-mark { display: grid; place-items: center; width: 32px; height: 32px; margin: 0 auto 4px; color: var(--ink); font-size: 22px; }
+.terminal-success .detail-list { margin: 8px 0 0; padding: 12px 0; text-align: left; }
 .terminal-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding: 16px 24px; color: var(--muted); background: var(--paper); border-top: 1px solid var(--line); font-size: 12px; }
 @media (max-width: 560px) {
   .terminal-header, .terminal-footer { padding-inline: 14px; }
