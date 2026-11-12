@@ -14,7 +14,7 @@ node "学生手机" as C1 {
 }
 
 node "教师 / 管理员 / 学生电脑" as C2 {
-  artifact "Vue3 Web :5173\n松风工作台顶栏壳层\n业务 /api 与 /api/ai 代理" as FE
+  artifact "Vue3 Web :5173\n满幅时间格顶栏壳层\n业务 /api 与 /api/ai 代理" as FE
 }
 
 node "实验室签到电脑" as C3 {

@@ -45,7 +45,7 @@
 - 设计类图与部分顺序图仍使用 ReservationServiceImpl、ScheduleQueryController、StatController、BitmapDao、ChatController 等设计名；实现类名与模块划分以 server 与 ai-service 源码为准。
 - 运行时鉴权按 STUDENT / TEACHER / LAB_ADMIN / SYS_ADMIN 四角色执行；`sys_permission` 仅建表预留，请求路径不读取权限码。图 4-10 中的 usage:view 不是实际权限码。
 - 信用、申诉与智能问答当前仅 Web 已有页面，小程序仍为规划。签退渠道已增加 WEB_ACCOUNT。
-- Web 壳层已改为松风工作台顶栏导航。系统设计只记这一句壳层约束，不改业务图。图中「管理后台」宜理解为 LabSpace Web 工作台 / 运营台。
+- Web 壳层现行规范为「满幅时间格」：打开 Web、登录后默认进入时间尺；顶栏高 48px、白底，桌面为顶栏横向导航，窄屏把导航收进顶栏下方的菜单，不使用左侧导航边栏或左侧抽屉。窄屏「两列」指时间尺改为上下两列且左栏限制高度，不是导航。对照提交 `2d73a648` 的主题曾称「松风工作台」，其后 main 已改为上述壳层。系统设计只记这一句壳层约束，不改业务图。图中「管理后台」宜理解为 LabSpace Web 工作台 / 运营台。
 - 图中「推送/通知」改为「用户自行查询」。已改标签并同步 png/svg 的源文件：`uml/oo-design/08_activity_scheduling.puml`、`uml/business-process/11_bp_overview.puml`、`uml/business-process/14_bp_checkin_violation.puml`、`uml/business-process/16_bp_scheduling.puml`。现状补充图的 png/svg 一并生成。渲染使用 PlantUML 1.2024.8；本环境无微软雅黑，PNG 按「Microsoft YaHei」名用文泉驿微米黑栅格化，字距可能与原先 Windows 成图略有差别。SVG 仍声明 Microsoft YaHei。其余 13 张图的主文件与成品未重渲。
 
 ## 二、生命周期方法与本图集的对应关系
