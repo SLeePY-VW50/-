@@ -208,6 +208,7 @@ mvn -f server/pom.xml clean package
 - [系统分析与设计说明书](doc/系统分析与设计说明书.md)
 - [工位级预约细化设计说明](doc/工位级预约细化设计说明.md)
 - [UML 图集说明](doc/UML图集说明.md)
+- [系统设计架构现状](doc/系统设计-架构现状.md)（缺口见 [系统设计-缺口清单](doc/系统设计-缺口清单.md)）
 - [Web 端设计规范](DESIGN.md)
 - [功能设计与实施计划](docs/superpowers/)
 

@@ -36,6 +36,18 @@
 - 数据模型为 23 张表，用例模型为 20 个用例、6 个用例包、5 类参与者；图集共 17 张图。
 - 算法对比统一五项指标，可靠性指标单列；遗传算法使用锦标赛选择。
 
+## 与 GitHub main 实现的已知差异（2026-11-10 对照）
+
+对照提交 `2d73a6489babc1ea665feb037c8cdcee16bc1e75`（2026-11-10 23:33 中国标准时间）。上文「当前设计基线」保留设计范围；与实现不一致时以本节为准。
+
+- 部署图中的 Nginx、独立 schedule-worker :8081、每日 mysqldump 属于设计目标，仓库当前可运行拓扑为：Web 5173（开发期 Vite 反代）、Spring Boot 8080（含进程内定时任务与排期 Worker）、FastAPI 8000、本地 MySQL 3307、Redis 6379。图 4-7 主文件 `uml/oo-design/10_deployment.puml` 保留为「目标部署（尚未按仓库落地）」。
+- 现状补充源稿（不覆盖原图 4-2、图 4-7 主文件）：`uml/oo-design/10_deployment.current.puml`、`uml/oo-design/05_sequence_reservation.current.puml`。同一现状的 mermaid 见 `uml/mermaid/architecture-views.md`。
+- 设计类图与部分顺序图仍使用 ReservationServiceImpl、ScheduleQueryController、StatController、BitmapDao、ChatController 等设计名；实现类名与模块划分以 server 与 ai-service 源码为准。
+- 运行时鉴权按 STUDENT / TEACHER / LAB_ADMIN / SYS_ADMIN 四角色执行；`sys_permission` 仅建表预留，请求路径不读取权限码。图 4-10 中的 usage:view 不是实际权限码。
+- 信用、申诉与智能问答当前仅 Web 已有页面，小程序仍为规划。签退渠道已增加 WEB_ACCOUNT。
+- Web 壳层现行规范为「满幅时间格」：打开 Web、登录后默认进入时间尺；顶栏高 48px、白底，桌面为顶栏横向导航，窄屏把导航收进顶栏下方的菜单，不使用左侧导航边栏或左侧抽屉。窄屏「两列」指时间尺改为上下两列且左栏限制高度，不是导航。对照提交 `2d73a648` 的主题曾称「松风工作台」，其后 main 已改为上述壳层。系统设计只记这一句壳层约束，不改业务图。图中「管理后台」宜理解为 LabSpace Web 工作台 / 运营台。
+- 图中「推送/通知」改为「用户自行查询」。已改标签并同步 png/svg 的源文件：`uml/oo-design/08_activity_scheduling.puml`、`uml/business-process/11_bp_overview.puml`、`uml/business-process/14_bp_checkin_violation.puml`、`uml/business-process/16_bp_scheduling.puml`。现状补充图的 png/svg 一并生成。渲染使用 PlantUML 1.2024.8；本环境无微软雅黑，PNG 按「Microsoft YaHei」名用文泉驿微米黑栅格化，字距可能与原先 Windows 成图略有差别。SVG 仍声明 Microsoft YaHei。其余 13 张图的主文件与成品未重渲。
+
 ## 二、生命周期方法与本图集的对应关系
 
 | 生命周期阶段 | 本图集产出 |
@@ -109,6 +121,8 @@
 doc/
 ├─ render-all.ps1
 ├─ 系统分析与设计说明书.md
+├─ 系统设计-架构现状.md
+├─ 系统设计-缺口清单.md
 ├─ 工位级预约细化设计说明.md
 ├─ UML图集说明.md
 └─ uml/
@@ -121,10 +135,12 @@ doc/
    ├─ oo-design/
    │  ├─ 04_design_class.puml / .png / .svg
    │  ├─ 05_sequence_reservation.puml / .png / .svg
+   │  ├─ 05_sequence_reservation.current.puml / .png / .svg
    │  ├─ 06_sequence_scheduling.puml / .png / .svg
    │  ├─ 07_state_reservation.puml / .png / .svg
    │  ├─ 08_activity_scheduling.puml / .png / .svg
    │  ├─ 10_deployment.puml / .png / .svg
+   │  ├─ 10_deployment.current.puml / .png / .svg
    │  └─ 17_sequence_ai_assistant.puml / .png / .svg
    ├─ business-process/
    │  ├─ 11_bp_overview.puml / .png / .svg
@@ -133,6 +149,8 @@ doc/
    │  ├─ 14_bp_checkin_violation.puml / .png / .svg
    │  ├─ 15_bp_teacher_batch.puml / .png / .svg
    │  └─ 16_bp_scheduling.puml / .png / .svg
-   └─ database/
-      └─ 09_er.puml / .png / .svg
+   ├─ database/
+   │  └─ 09_er.puml / .png / .svg
+   └─ mermaid/
+      └─ architecture-views.md
 ```
