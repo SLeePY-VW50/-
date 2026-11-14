@@ -29,6 +29,15 @@ public interface UserMapper extends BaseMapper<UserEntity> {
             """)
     List<UserRoleAssignment> selectAllRoleAssignments();
 
+    @Select("SELECT role_id FROM sys_role WHERE role_code = #{roleCode}")
+    Long selectRoleIdByCode(@Param("roleCode") String roleCode);
+
+    @Insert("""
+            INSERT INTO sys_user_role (user_id, role_id)
+            VALUES (#{userId}, #{roleId})
+            """)
+    int insertUserRole(@Param("userId") long userId, @Param("roleId") long roleId);
+
     @Insert("""
             INSERT INTO sys_user (account, name, password_hash, credit_score, status)
             VALUES (#{account}, #{name}, #{passwordHash}, 100, 'ACTIVE')

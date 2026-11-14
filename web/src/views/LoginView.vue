@@ -20,8 +20,12 @@ const periods = [
   { name: '晚间', range: '18:00–24:00' },
 ]
 const form = reactive({ account: '', password: '' })
+const registerForm = reactive({ account: '', name: '', password: '', confirm: '' })
+const mode = ref<'login' | 'register'>('login')
 const loading = ref(false)
+const registering = ref(false)
 const error = ref('')
+const success = ref('')
 const now = ref({ period: -1, top: '0%', label: '' })
 let clock: ReturnType<typeof setInterval> | undefined
 const auth = useAuthStore()
@@ -57,6 +61,7 @@ async function login() {
   if (!form.account.trim() || !form.password) { error.value = '请输入账号和密码'; return }
   loading.value = true
   error.value = ''
+  success.value = ''
   try {
     const result = await http.post<{ token: string; user: User }>('/api/auth/login', { account: form.account.trim(), password: form.password })
     auth.setAuth(result.token, result.user)
@@ -64,6 +69,31 @@ async function login() {
     const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') && !route.query.redirect.startsWith('//') ? route.query.redirect : '/labs'
     await router.replace(redirect)
   } catch (cause) { error.value = errorMessage(cause) } finally { loading.value = false }
+}
+function switchMode() {
+  mode.value = mode.value === 'login' ? 'register' : 'login'
+  error.value = ''
+  success.value = ''
+}
+async function register() {
+  const account = registerForm.account.trim()
+  const name = registerForm.name.trim()
+  if (!account || !name || !registerForm.password) { error.value = '请填写账号、姓名和密码'; return }
+  if (registerForm.password !== registerForm.confirm) { error.value = '两次输入的密码不一致'; return }
+  registering.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    await http.post<User>('/api/auth/register', { account, name, password: registerForm.password })
+    form.account = account
+    form.password = ''
+    registerForm.account = ''
+    registerForm.name = ''
+    registerForm.password = ''
+    registerForm.confirm = ''
+    mode.value = 'login'
+    success.value = `账号 ${account} 注册成功，请使用该账号登录`
+  } catch (cause) { error.value = errorMessage(cause) } finally { registering.value = false }
 }
 onMounted(() => { placeNow(); clock = setInterval(placeNow, 30_000) })
 onBeforeUnmount(() => { if (clock) clearInterval(clock) })
@@ -77,14 +107,26 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
     </header>
     <div class="gate__body">
       <aside class="rail">
-        <form class="login-box" @submit.prevent="login">
-          <h1>一天四十八格。</h1>
-          <p class="lead">先看清占用、容量和审批，再决定预约或签到。</p>
-          <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="学号或工号"></label>
-          <label class="field"><span>密码</span><input v-model="form.password" type="password" autocomplete="current-password" placeholder="密码"></label>
-          <button class="go" type="submit" :disabled="loading">{{ loading ? '正在验证…' : '进入' }}</button>
+        <form class="login-box" @submit.prevent="mode === 'login' ? login() : register()">
+          <h1>{{ mode === 'login' ? '一天四十八格。' : '注册学生账号。' }}</h1>
+          <p class="lead">{{ mode === 'login' ? '先看清占用、容量和审批，再决定预约或签到。' : '新账号默认学生角色，注册后即可用该账号登录。' }}</p>
+          <template v-if="mode === 'login'">
+            <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="学号或工号"></label>
+            <label class="field"><span>密码</span><input v-model="form.password" type="password" autocomplete="current-password" placeholder="密码"></label>
+            <button class="go" type="submit" :disabled="loading">{{ loading ? '正在验证…' : '进入' }}</button>
+            <button class="switch" type="button" @click="switchMode">注册用户</button>
+          </template>
+          <template v-else>
+            <label class="field"><span>账号</span><input v-model="registerForm.account" autocomplete="username" maxlength="32" placeholder="学号或工号"></label>
+            <label class="field"><span>姓名</span><input v-model="registerForm.name" autocomplete="name" maxlength="64" placeholder="真实姓名"></label>
+            <label class="field"><span>密码</span><input v-model="registerForm.password" type="password" autocomplete="new-password" placeholder="密码"></label>
+            <label class="field"><span>确认密码</span><input v-model="registerForm.confirm" type="password" autocomplete="new-password" placeholder="再次输入密码"></label>
+            <button class="go" type="submit" :disabled="registering">{{ registering ? '正在注册…' : '注册' }}</button>
+            <button class="switch" type="button" @click="switchMode">返回登录</button>
+          </template>
+          <p v-if="success" class="success-banner" role="status">{{ success }}</p>
           <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
-          <div v-if="isDev" class="hints">
+          <div v-if="isDev && mode === 'login'" class="hints">
             本地账号
             <button v-for="item in accounts" :key="item.account" type="button" @click="fill(item.account)">{{ item.role }} {{ item.account }}</button>
           </div>
@@ -122,6 +164,8 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
 .login-box .error-banner { margin: 0; }
 .hints { display: flex; flex-direction: column; gap: 6px; color: var(--faint); font-size: 13px; }
 .hints button { padding: 0; color: var(--muted); background: none; border: 0; cursor: pointer; font-size: 13px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.switch { padding: 0; color: var(--muted); background: none; border: 0; cursor: pointer; font-size: 13px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.switch:hover { color: var(--ink); }
 .ruler-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--paper); }
 .main-head { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 24px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 .main-head b { color: var(--ink); font-weight: 500; }

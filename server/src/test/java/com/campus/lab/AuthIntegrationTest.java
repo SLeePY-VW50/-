@@ -245,6 +245,155 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .isZero();
     }
 
+    @Test
+    void registrationCreatesAnActiveStudentUsableByExistingLogin() throws Exception {
+        String account = "R" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 20);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", account,
+                                "name", "注册学生",
+                                "password", "Reg@2026"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.account").value(account))
+                .andExpect(jsonPath("$.data.name").value("注册学生"))
+                .andExpect(jsonPath("$.data.roles[0]").value("STUDENT"))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.token").doesNotExist())
+                .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
+
+        loginAndGetToken(account, "Reg@2026");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT credit_score FROM sys_user WHERE account = ?", Integer.class, account))
+                .isEqualTo(100);
+    }
+
+    @Test
+    void duplicateAccountRegistrationIsRejectedWithoutOverwritingTheUser() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "20240001",
+                                "name", "覆盖尝试",
+                                "password", "Reg@2026"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("账号已存在"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM sys_user WHERE account = '20240001'", String.class))
+                .isEqualTo("演示学生");
+    }
+
+    @Test
+    void registrationRejectsMissingFields() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", " ",
+                                "name", "注册学生",
+                                "password", "Reg@2026"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void anonymousCannotCreateUsersThroughAdminEndpoint() throws Exception {
+        mockMvc.perform(post("/api/admin/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "ANON-1",
+                                "name", "匿名创建",
+                                "password", "Create@2026",
+                                "role", "STUDENT"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
+    }
+
+    @Test
+    void nonSysAdminCannotCreateUsers() throws Exception {
+        String token = loginAndGetToken("T1001", "Lab@2026");
+
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "DENIED-1",
+                                "name", "越权创建",
+                                "password", "Create@2026",
+                                "role", "STUDENT"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("没有执行该操作的权限"));
+    }
+
+    @Test
+    void sysAdminCreatesUsersWithEachRoleAndTheyAppearInTheList() throws Exception {
+        String token = loginAndGetToken("A1001", "Lab@2026");
+        List<String> accounts = new ArrayList<>();
+        for (String role : List.of("STUDENT", "TEACHER", "LAB_ADMIN", "SYS_ADMIN")) {
+            String account = "C" + java.util.UUID.randomUUID().toString()
+                    .replace("-", "").substring(0, 20);
+            accounts.add(account);
+            mockMvc.perform(post("/api/admin/users")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "account", account,
+                                    "name", "管理员建号",
+                                    "password", "Create@2026",
+                                    "role", role))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data.account").value(account))
+                    .andExpect(jsonPath("$.data.roles[0]").value(role))
+                    .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+            loginAndGetToken(account, "Create@2026");
+        }
+
+        String list = mockMvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(list).path("data").findValuesAsText("account"))
+                .containsAll(accounts);
+    }
+
+    @Test
+    void adminCreateRejectsUnknownRole() throws Exception {
+        String token = loginAndGetToken("A1001", "Lab@2026");
+
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "ROLE-UNKNOWN-1",
+                                "name", "未知角色",
+                                "password", "Create@2026",
+                                "role", "GUEST"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("角色无效"));
+    }
+
+    @Test
+    void sysAdminCreateRejectsDuplicateAccount() throws Exception {
+        String token = loginAndGetToken("A1001", "Lab@2026");
+
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "20240001",
+                                "name", "重复账号",
+                                "password", "Create@2026",
+                                "role", "TEACHER"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("账号已存在"));
+    }
+
     private void createNonDemoResourceData() {
         String otherAccount = createTestAccount("STUDENT");
         long otherUserId = userIdByAccount(otherAccount);
