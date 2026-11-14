@@ -99,4 +99,38 @@ describe('时间尺工位列表', () => {
     expect(wrapper.find('.seat').exists()).toBe(false)
     expect(wrapper.find('.seat-note').exists()).toBe(false)
   })
+
+  it('点选后可以重置并重新选择', async () => {
+    const label = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
+    const slots = Array.from({ length: 48 }, (_, index) => ({
+      index,
+      start: label(index * 30),
+      end: label(index * 30 + 30),
+      roomOccupied: false,
+      occupiedSeatCount: 0,
+      availableSeatCount: 20,
+    }))
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/api/labs') {
+        return Promise.resolve([{ labId: 1, code: 'LAB-A', name: '人工智能实验室', location: '创新楼 A301', capacity: 20, status: 'ACTIVE' }])
+      }
+      if (url.endsWith('/rules')) return Promise.resolve(rules)
+      if (url.includes('/availability')) return Promise.resolve({ ...availability, slots })
+      return Promise.reject(new Error(url))
+    })
+
+    const wrapper = await mountLabs()
+    await wrapper.findAll('.cell')[16].trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('08:00–08:30，30 分钟')
+    await wrapper.findAll('.cell')[20].trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('08:00–10:30，150 分钟')
+    expect(wrapper.find('button.reset').exists()).toBe(true)
+
+    await wrapper.get('button.reset').trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('在开放格上点选一段连续时段')
+    expect(wrapper.find('button.reset').exists()).toBe(false)
+
+    await wrapper.findAll('.cell')[18].trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('09:00–09:30，30 分钟')
+  })
 })

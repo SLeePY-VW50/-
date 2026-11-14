@@ -110,6 +110,12 @@ function moveFocus(event: KeyboardEvent, index: number) {
   buttons.value[next]?.focus()
 }
 watch(() => props.date, placeNow)
+watch(() => props.modelValue, (value) => {
+  if (!value) {
+    conflict.value = []
+    message.value = ''
+  }
+})
 onMounted(() => {
   placeNow()
   clock = setInterval(placeNow, 30_000)

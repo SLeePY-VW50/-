@@ -145,7 +145,10 @@ onMounted(loadLabs)
         <p>签到窗口开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟。</p>
       </div>
       <div v-if="canReserve && labs.length">
-        <div class="range" :class="{ active: Boolean(selection) }">{{ selection ? rangeText : '在开放格上点选一段连续时段' }}</div>
+        <div class="range" :class="{ active: Boolean(selection) }">
+          <span>{{ selection ? rangeText : '在开放格上点选一段连续时段' }}</span>
+          <button v-if="selection" class="reset" type="button" @click="selection = null">重置</button>
+        </div>
         <button class="go" type="button" @click="showForm = true">{{ selection ? '提交预约' : '填写预约' }}</button>
       </div>
     </aside>
@@ -186,8 +189,9 @@ onMounted(loadLabs)
 .seat-note { font-size: 12px; }
 .rules p { margin: 0; }
 .rules p + p { margin-top: 4px; }
-.range { min-height: 24px; color: var(--muted); font-size: 14px; }
+.range { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 24px; color: var(--muted); font-size: 14px; }
 .range.active { color: var(--ink); font-weight: 500; }
+.range .reset { appearance: none; padding: 0; color: var(--muted); background: none; border: 0; border-radius: 0; cursor: pointer; font-size: 12px; font-weight: 400; }
 .go { appearance: none; width: 100%; height: 44px; margin-top: 12px; color: #fff; background: var(--ink); border: 0; border-radius: 0; cursor: pointer; font-size: 15px; font-weight: 500; }
 .ruler-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--paper); }
 .main-head { display: flex; align-items: center; justify-content: space-between; height: 48px; flex: 0 0 auto; padding: 0 24px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 14px; }
