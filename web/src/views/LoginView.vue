@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import markUrl from '../assets/labspace-mark.svg'
 import http, { errorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import { today } from '../utils'
@@ -72,7 +73,7 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
 <template>
   <main class="gate">
     <header class="gate__top">
-      <span class="brand">LabSpace</span>
+      <span class="brand"><img class="brand__mark" :src="markUrl" alt="" width="32" height="32" aria-hidden="true" />LabSpace</span>
       <router-link to="/terminal">终端签到</router-link>
     </header>
     <div class="gate__body">
@@ -109,7 +110,8 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
 <style scoped>
 .gate { height: 100dvh; display: grid; grid-template-rows: 48px minmax(0, 1fr); background: var(--paper); }
 .gate__top { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 20px 0 24px; background: var(--paper); border-bottom: 1px solid var(--line); }
-.brand { font-size: 16px; font-weight: 600; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-size: 24px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.brand__mark { display: block; width: 32px; height: 32px; flex: 0 0 auto; }
 .gate__top a { color: var(--muted); font-size: 14px; }
 .gate__top a:hover { color: var(--ink); text-decoration: none; }
 .gate__body { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 0; }
