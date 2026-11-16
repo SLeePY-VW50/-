@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Close, Menu } from '@element-plus/icons-vue'
+import markUrl from '../assets/labspace-mark.svg'
 import { useAuthStore } from '../stores/auth'
 import { roleLabels } from '../utils'
 import type { Role } from '../types'
@@ -53,7 +54,7 @@ onBeforeUnmount(() => {
   <div class="mast-shell" :class="{ 'mast-shell--menu': menuOpen && isNarrow }">
     <a class="skip-link" href="#main-content">跳转到主要内容</a>
     <header class="mast">
-      <router-link class="brand" to="/labs" aria-label="LabSpace 时间尺" @click="closeMenu">LabSpace</router-link>
+      <router-link class="brand" to="/labs" aria-label="LabSpace 时间尺" @click="closeMenu"><img class="brand__mark" :src="markUrl" alt="" width="20" height="20" aria-hidden="true" />LabSpace</router-link>
       <nav v-show="!isNarrow" class="mast__nav" aria-label="主导航">
         <router-link v-for="item in visibleItems" :key="item.path" :to="item.path" class="mast__link" :class="{ active: isActive(item.path) }">{{ item.label }}</router-link>
       </nav>
@@ -79,7 +80,8 @@ onBeforeUnmount(() => {
 .skip-link { position: fixed; top: 8px; left: 12px; z-index: 100; padding: 8px 12px; color: #fff; background: var(--ink); transform: translateY(-150%); }
 .skip-link:focus { transform: translateY(0); }
 .mast { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 20px; height: 48px; padding: 0 20px 0 24px; background: var(--paper); border-bottom: 1px solid var(--line); }
-.brand { flex: 0 0 auto; color: var(--ink); font-size: 16px; font-weight: 600; }
+.brand { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 16px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.brand__mark { display: block; width: 20px; height: 20px; flex: 0 0 auto; }
 .brand:hover, .mast__link:hover, .terminal-link:hover, .mast-menu__link:hover, .logout:hover { color: var(--ink); text-decoration: none; }
 .mast__nav { display: flex; align-items: center; gap: 20px; min-width: 0; overflow-x: auto; }
 .mast__link { display: inline-flex; align-items: center; height: 48px; color: var(--muted); font-size: 14px; font-weight: 400; white-space: nowrap; }
