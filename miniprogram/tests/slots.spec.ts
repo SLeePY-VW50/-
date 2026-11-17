@@ -1,6 +1,6 @@
 // @ts-expect-error Vitest provides the Node runtime without Node type declarations.
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { chooseSlot, type SlotRange } from '../miniprogram/utils/slots'
 import type { SlotAvailability } from '../miniprogram/api/types'
 
@@ -59,5 +59,58 @@ describe('slot-grid WXML bindings', () => {
     expect(wxml).toContain('slot.availableSeatCount')
     expect(wxml).not.toContain('data-index="{{index}}"')
     expect(wxml).not.toContain('{{start}}')
+    expect(wxml).toContain('slots.length / 12')
+    expect(wxml).toContain('cell--conflict')
+    expect(wxml).toContain('hover-class="cell--pressed"')
+  })
+})
+
+describe('slot-grid conflict highlight', () => {
+  it('marks blocked cells in a rejected range and clears them after a valid tap', async () => {
+    vi.resetModules()
+    interface GridData {
+      conflict: number[]
+      slots: SlotAvailability[]
+      selection: SlotRange | null
+      mode: 'ROOM' | 'SEAT'
+      openTime: string
+      closeTime: string
+    }
+    interface GridHost {
+      data: GridData
+      setData(patch: Partial<GridData>): void
+      triggerEvent(name: string, value: unknown): void
+    }
+    interface GridComponent {
+      data: { conflict: number[] }
+      methods: {
+        select(this: GridHost, event: { currentTarget: { dataset: { index: number } } }): void
+      }
+    }
+    let definition: GridComponent | undefined
+    const showToast = vi.fn()
+    vi.stubGlobal('Component', (component: GridComponent) => { definition = component })
+    vi.stubGlobal('wx', { showToast })
+    await import('../miniprogram/components/slot-grid/index')
+    const slots = Array.from({ length: 48 }, (_, index) => slot(index))
+    slots[17]!.roomOccupied = true
+    const grid: GridHost = {
+      data: { ...definition!.data, slots, selection: { start: 16, end: null }, mode: 'ROOM', openTime: '08:00', closeTime: '22:00' },
+      setData(patch) { Object.assign(grid.data, patch) },
+      triggerEvent: vi.fn(),
+    }
+
+    definition!.methods.select.call(grid, { currentTarget: { dataset: { index: 18 } } })
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '所选区间包含不可预约时段' }))
+    expect(grid.data.conflict).toEqual([17])
+    expect(grid.triggerEvent).not.toHaveBeenCalled()
+
+    grid.data.selection = null
+    grid.data.mode = 'SEAT'
+    definition!.methods.select.call(grid, { currentTarget: { dataset: { index: 20 } } })
+
+    expect(grid.data.conflict).toEqual([])
+    expect(grid.triggerEvent).toHaveBeenCalledWith('change', { start: 20, end: null })
   })
 })

@@ -15,7 +15,7 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       const result = await loginWithWeChat()
-      if (result.bound) wx.switchTab({ url: '/pages/home/index' })
+      if (result.bound) wx.switchTab({ url: '/pages/labs/index' })
       else wx.navigateTo({ url: `/pages/bind/index?ticket=${encodeURIComponent(result.bindTicket)}` })
     } catch (error) { this.setData({ error: errorMessage(error) }) }
     finally { this.setData({ loading: false }) }
@@ -31,7 +31,7 @@ Page({
     try {
       const result = await developmentLogin(account, this.data.password)
       saveSession(result.token, result.user)
-      wx.switchTab({ url: '/pages/home/index' })
+      wx.switchTab({ url: '/pages/labs/index' })
     } catch (error) { this.setData({ error: errorMessage(error) }) }
     finally { this.setData({ loading: false, password: '' }) }
   },

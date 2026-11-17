@@ -23,7 +23,7 @@ Page({
     try {
       const result = await wechatBind(this.data.ticket, account, this.data.password)
       saveSession(result.token, result.user)
-      wx.switchTab({ url: '/pages/home/index' })
+      wx.switchTab({ url: '/pages/labs/index' })
     } catch (error) { this.setData({ error: errorMessage(error) }) }
     finally { this.setData({ loading: false, password: '' }) }
   },
