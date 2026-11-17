@@ -42,16 +42,25 @@ function mark(slot, selection) {
   if (selection && selection.start === slot.index) return '起点'
   return ''
 }
+function hit(list, index) {
+  if (!list || !list.length) return false
+  var i = 0
+  for (i = 0; i < list.length; i++) {
+    if (list[i] === index) return true
+  }
+  return false
+}
 module.exports.group = group
 module.exports.closed = closed
 module.exports.used = used
 module.exports.mark = mark
+module.exports.hit = hit
 </wxs>
 <view class="periods">
   <view wx:for="{{board.group(slots)}}" wx:for-item="band" wx:for-index="pi" wx:key="range" class="period">
     <view class="period-h"><text class="period-h__name">{{band.name}}</text><text class="period-h__range">{{band.range}}</text></view>
     <view class="slots">
-      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="cell {{slot.index % 2 === 0 ? 'cell--hour' : ''}} {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'cell--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'cell--occupied' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'cell--closed' : ''}}" data-index="{{slot.index}}" bindtap="select">
+      <view wx:for="{{band.slots}}" wx:for-item="slot" wx:key="index" class="cell {{slot.index % 2 === 0 ? 'cell--hour' : ''}} {{selection && slot.index >= selection.start && (selection.end === null ? slot.index === selection.start : slot.index <= selection.end) ? 'cell--selected' : ''}} {{slot.roomOccupied && mode === 'ROOM' || slot.availableSeatCount === 0 && mode === 'SEAT' ? 'cell--occupied' : ''}} {{board.closed(slot.index, openTime, closeTime) ? 'cell--closed' : ''}} {{board.hit(conflict, slot.index) ? 'cell--conflict' : ''}}" hover-class="cell--pressed" hover-stay-time="80" data-index="{{slot.index}}" bindtap="select">
         <text wx:if="{{!board.closed(slot.index, openTime, closeTime)}}">{{slot.start}}</text>
         <text wx:if="{{mode === 'SEAT' && !board.closed(slot.index, openTime, closeTime) && slot.availableSeatCount > 0}}" class="cell__count">{{slot.availableSeatCount}}</text>
       </view>

@@ -1,8 +1,21 @@
-import { chooseSlot, type SlotRange } from '../../utils/slots'
+import { chooseSlot, slotAvailable, type SlotRange } from '../../utils/slots'
 import type { SlotAvailability } from '../../api/types'
 
 function todayText(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function conflictIndexes(slots: SlotAvailability[], selection: SlotRange | null, index: number,
+  mode: 'ROOM' | 'SEAT', openTime: string, closeTime: string) {
+  if (!selection || selection.end !== null) return []
+  const start = Math.min(selection.start, index)
+  const end = Math.max(selection.start, index)
+  const blocked: number[] = []
+  for (let cursor = start; cursor <= end; cursor++) {
+    const item = slots[cursor]
+    if (!item || !slotAvailable(item, mode, openTime, closeTime)) blocked.push(item?.index ?? cursor)
+  }
+  return blocked
 }
 
 Component({
@@ -18,12 +31,16 @@ Component({
     nowPeriod: -1,
     nowTop: '0%',
     nowLabel: '',
+    conflict: [] as number[],
   },
   lifetimes: {
     attached() { this.syncNow() },
   },
   observers: {
     date() { this.syncNow() },
+    'slots, mode, openTime, closeTime'() {
+      if (this.data.conflict.length) this.setData({ conflict: [] })
+    },
   },
   methods: {
     syncNow() {
@@ -42,12 +59,16 @@ Component({
     },
     select(event: WechatMiniprogram.TouchEvent) {
       const index = Number(event.currentTarget.dataset.index)
-      const result = chooseSlot(this.data.slots as SlotAvailability[], this.data.selection as SlotRange | null,
-        index, this.data.mode as 'ROOM' | 'SEAT', this.data.openTime, this.data.closeTime)
+      const slots = this.data.slots as SlotAvailability[]
+      const selection = this.data.selection as SlotRange | null
+      const mode = this.data.mode as 'ROOM' | 'SEAT'
+      const result = chooseSlot(slots, selection, index, mode, this.data.openTime, this.data.closeTime)
       if (result.error) {
         wx.showToast({ title: result.error, icon: 'none' })
+        this.setData({ conflict: conflictIndexes(slots, selection, index, mode, this.data.openTime, this.data.closeTime) })
         return
       }
+      this.setData({ conflict: [] })
       this.triggerEvent('change', result.range)
     },
   },

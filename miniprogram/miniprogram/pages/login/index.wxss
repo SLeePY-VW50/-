@@ -1,13 +1,10 @@
 .auth-page { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 48rpx 40rpx 64rpx; background: #ffffff; }
 .auth-center { width: 100%; }
-.auth-brand__name { font-size: 32rpx; font-weight: 600; }
-.kicker { margin-top: 36rpx; color: #525252; font-size: 24rpx; }
+.auth-brand { display: flex; align-items: center; gap: 20rpx; }
+.auth-brand__mark { display: block; width: 64rpx; height: 64rpx; flex: 0 0 auto; }
+.auth-brand__name { color: #171717; font-size: 48rpx; font-weight: 600; line-height: 1; }
 .auth-title { margin-top: 8rpx; font-size: 56rpx; font-weight: 600; line-height: 1.15; }
 .auth-subtitle { margin: 12rpx 0 28rpx; color: #525252; }
-.motif { display: grid; gap: 8rpx; margin-bottom: 32rpx; }
-.motif__row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4rpx; }
-.motif__cell { height: 16rpx; background: #ffffff; border-bottom: 2rpx solid #ececec; }
-.motif__cell.on { background: repeating-linear-gradient(-45deg, #f5f5f5 0 4rpx, #dddddd 4rpx 6rpx); }
 .development { margin-top: 32rpx; padding-top: 24rpx; border-top: 2rpx solid #ececec; }
 .development__title { font-weight: 500; }
 .development__note { margin: 8rpx 0 20rpx; font-size: 24rpx; }

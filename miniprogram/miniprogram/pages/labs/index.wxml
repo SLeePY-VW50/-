@@ -1,5 +1,4 @@
 <view class="page board">
-  <view class="page-title">时间尺</view>
   <view class="muted page-subtitle">48 格，每格 30 分钟</view>
   <view wx:if="{{error}}" class="error">
     <text>{{error}}</text>

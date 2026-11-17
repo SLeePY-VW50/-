@@ -1,5 +1,5 @@
 .detail { padding: 30rpx; }
-.detail__head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; font-weight: 650; }
+.detail__head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; font-weight: 600; }
 .detail-row { display: flex; min-height: 96rpx; padding: 20rpx 0; align-items: center; justify-content: space-between; gap: 28rpx; border-bottom: 2rpx solid #ececec; }
 .detail-row text:last-child { text-align: right; }
 .status { flex-shrink: 0; color: #525252; font-size: 24rpx; }
