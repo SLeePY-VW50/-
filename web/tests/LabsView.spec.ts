@@ -7,7 +7,7 @@ import { useAuthStore } from '../src/stores/auth'
 import http from '../src/api/http'
 
 vi.mock('../src/api/http', () => ({
-  default: { get: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn() },
   AUTH_TOKEN_KEY: 'campus.lab.token',
   AUTH_USER_KEY: 'campus.lab.user',
   errorMessage: (error: unknown) => error instanceof Error ? error.message : '请求失败',
@@ -132,5 +132,44 @@ describe('时间尺工位列表', () => {
 
     await wrapper.findAll('.cell')[18].trigger('click')
     expect(wrapper.get('.range span').text()).toBe('09:00–09:30，30 分钟')
+  })
+
+  it('点击推荐时段只回填时间尺，不提交预约', async () => {
+    const label = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
+    const slots = Array.from({ length: 48 }, (_, index) => ({
+      index,
+      start: label(index * 30),
+      end: index === 47 ? '24:00' : label(index * 30 + 30),
+      roomOccupied: false,
+      occupiedSeatCount: 0,
+      availableSeatCount: 20,
+    }))
+    vi.mocked(http.get).mockImplementation((url: string) => {
+      if (url === '/api/labs') {
+        return Promise.resolve([{ labId: 1, code: 'LAB-A', name: '人工智能实验室', location: '创新楼 A301', capacity: 20, status: 'ACTIVE' }])
+      }
+      if (url.endsWith('/rules')) return Promise.resolve(rules)
+      if (url.includes('/availability')) return Promise.resolve({ ...availability, slots })
+      if (url.includes('/recommendations')) {
+        return Promise.resolve({
+          outcome: 'AVAILABLE',
+          recommendations: [{ startSlot: 16, endSlot: 18, startTime: '08:00', endTime: '09:00', durationMinutes: 60 }],
+        })
+      }
+      return Promise.reject(new Error(url))
+    })
+
+    const wrapper = await mountLabs()
+    await wrapper.get('[data-testid="recommend-duration"]').setValue('60')
+    await wrapper.get('[data-testid="recommend-attendees"]').setValue('2')
+    await wrapper.get('[data-testid="recommend"]').trigger('click')
+    await flushPromises()
+
+    expect(http.get).toHaveBeenCalledWith('/api/reservations/recommendations', expect.objectContaining({
+      params: expect.objectContaining({ labId: 1, durationMinutes: 60, reservationMode: 'ROOM', attendeeCount: 2 }),
+    }))
+    await wrapper.get('[data-testid="recommendation"]').trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('08:00–09:00，60 分钟')
+    expect(http.post).not.toHaveBeenCalled()
   })
 })

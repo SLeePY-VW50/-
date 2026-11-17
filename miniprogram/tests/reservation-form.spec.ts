@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { cancelReservation, createReservation, myReservations, qrCheckin, reservationDetail, wechatCheckout } from '../miniprogram/api/reservations'
-import { buildReservationPayload, type ReservationFormState } from '../miniprogram/utils/reservation-form'
+import { buildReservationPayload, prepareReservationSubmit, type ReservationFormState } from '../miniprogram/utils/reservation-form'
+import { recommendationFormQuery } from '../miniprogram/utils/recommendations'
 
 declare const require: (id: string) => { readFileSync(path: string, encoding: string): string }
 
@@ -117,9 +118,11 @@ interface ReservationPageDefinition {
     durationOptions: number[]
     durationIndex: number
     submitting: boolean
+    confirmed: boolean
     error: string
     success: string
   }
+  toggleConfirm(): void
   onLoad(query: Record<string, string>): Promise<void>
   onAllocation(event: WechatMiniprogram.TouchEvent): void
   onMode(event: WechatMiniprogram.TouchEvent): void
@@ -298,6 +301,7 @@ describe('reservation form page', () => {
     const page = await loadReservationPage()
     const retained = { ...state, allocationMode: 'SCHEDULABLE' as const, purpose: '网络失败后仍需保留', attendeeCount: 4 }
     fillReservationPage(page, retained)
+    page.setData({ confirmed: true })
 
     await page.submit()
 
@@ -334,9 +338,50 @@ describe('reservation form page', () => {
     expect(wxml).toContain('maxlength="500"')
     expect(wxml).toContain('aria-role="alert"')
     expect(wxml).toContain('aria-live="assertive"')
-    expect(wxml).toContain('disabled="{{submitting}}"')
+    expect(wxml).toContain("disabled=\"{{submitting || (allocationMode === 'SCHEDULABLE' && !confirmed)}}\"")
     expect(wxss).toContain('min-height: 96rpx')
     expect(app.pages).toContain('pages/reservation-form/index')
     expect(app.tabBar.list.map(item => item.pagePath)).not.toContain('pages/reservation-form/index')
+  })
+
+  it('does not submit a schedulable request until the user confirms', async () => {
+    const request = vi.fn()
+    vi.stubGlobal('wx', { request, getStorageSync: () => '' })
+    const page = await loadReservationPage()
+    fillReservationPage(page, { allocationMode: 'SCHEDULABLE' })
+
+    await page.submit()
+
+    expect(request).not.toHaveBeenCalled()
+    expect(page.data.error).toBe('未经确认不能提交可调度预约')
+    page.toggleConfirm()
+    expect(page.data.confirmed).toBe(true)
+    expect(() => prepareReservationSubmit({ ...state, allocationMode: 'SCHEDULABLE' }, true)).not.toThrow()
+    expect(prepareReservationSubmit({ ...state, allocationMode: 'SCHEDULABLE' }, true)).toMatchObject({
+      allocationMode: 'SCHEDULABLE',
+      windowStart: '08:00',
+      windowEnd: '12:00',
+      durationMinutes: 60,
+      attendeeCount: 2,
+    })
+  })
+
+  it('fills the fixed form from a recommendation without submitting', () => {
+    const query = recommendationFormQuery({
+      labId: 4,
+      date: '2026-11-08',
+      mode: 'ROOM',
+      attendeeCount: 6,
+      startTime: '08:00',
+      endTime: '09:00',
+    })
+    expect(query).toContain('labId=4')
+    expect(query).toContain('date=2026-11-08')
+    expect(query).toContain('startTime=08:00')
+    expect(query).toContain('endTime=09:00')
+    expect(query).toContain('mode=ROOM')
+    expect(query).toContain('attendeeCount=6')
+    expect(query).toContain('allocationMode=FIXED')
+    expect(query).not.toContain('submit')
   })
 })

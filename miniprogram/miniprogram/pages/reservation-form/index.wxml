@@ -42,8 +42,12 @@
     </view>
     <label class="field-label purpose-label" for="reservation-purpose">使用用途</label>
     <textarea id="reservation-purpose" class="purpose" maxlength="500" placeholder="请简要说明使用用途" data-field="purpose" value="{{purpose}}" bindinput="onText" />
+    <view wx:if="{{allocationMode === 'SCHEDULABLE'}}" class="confirm-row" bindtap="toggleConfirm">
+      <view class="confirm-box {{confirmed ? 'on' : ''}}"></view>
+      <text>我已核对时间窗口、时长和人数，确认交给排程</text>
+    </view>
     <view wx:if="{{error}}" class="error" aria-role="alert" aria-live="assertive">{{error}}</view>
     <view wx:if="{{success}}" class="success" aria-live="polite">{{success}}</view>
-    <button class="button-primary submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">确认提交预约</button>
+    <button class="button-primary submit-button" loading="{{submitting}}" disabled="{{submitting || (allocationMode === 'SCHEDULABLE' && !confirmed)}}" bindtap="submit">确认提交预约</button>
   </view>
 </view>

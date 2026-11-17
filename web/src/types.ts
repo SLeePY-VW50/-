@@ -88,7 +88,20 @@ export interface ReservationPreferences {
   allowedLabIds?: number[]
 }
 
-export interface ReservationDraft {
+export interface SlotRecommendation {
+  startSlot: number
+  endSlot: number
+  startTime: string
+  endTime: string
+  durationMinutes: number
+}
+
+export interface SlotRecommendations {
+  outcome: 'AVAILABLE' | 'CREDIT_BLOCKED' | 'RULE_BLOCKED' | 'DURATION_UNFIT' | 'NONE_FREE'
+  recommendations: SlotRecommendation[]
+}
+
+export interface FixedReservationDraft {
   labId: number
   date: string
   startTime: string
@@ -98,6 +111,21 @@ export interface ReservationDraft {
   seatCount: number
   preferences: ReservationPreferences
 }
+
+export interface SchedulableReservationDraft {
+  allocationMode: 'SCHEDULABLE'
+  labId?: number | null
+  date: string
+  windowStart: string
+  windowEnd: string
+  durationMinutes: number
+  reservationMode: 'ROOM' | 'SEAT'
+  attendeeCount: number
+  purpose?: string
+  preferences: ReservationPreferences
+}
+
+export type ReservationDraft = FixedReservationDraft | SchedulableReservationDraft
 
 export interface CreateReservationPayload {
   allocationMode: 'FIXED' | 'SCHEDULABLE'

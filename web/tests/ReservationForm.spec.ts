@@ -99,6 +99,38 @@ describe('ReservationForm', () => {
     expect(http.post).not.toHaveBeenCalled()
   })
 
+  it('推荐时段只回填固定预约，不会自动提交', async () => {
+    const wrapper = mount(ReservationForm, {
+      props: {
+        labs,
+        initialLabId: 7,
+        initialDate: '2026-11-03',
+        initialReservationMode: 'SEAT',
+        initialAttendeeCount: 3,
+        selectedRange: { start: 16, end: 17 },
+      },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+    expect((wrapper.get('[data-testid="start-time"]').element as HTMLSelectElement).value).toBe('08:00')
+    expect((wrapper.get('[data-testid="end-time"]').element as HTMLSelectElement).value).toBe('09:00')
+    expect((wrapper.get('[data-testid="mode-seat"]').element as HTMLInputElement).checked).toBe(true)
+    expect((wrapper.get('[data-testid="attendee-count"]').element as HTMLInputElement).value).toBe('3')
+    expect((wrapper.get('[data-testid="seat-count"]').element as HTMLInputElement).value).toBe('3')
+    expect(http.post).not.toHaveBeenCalled()
+  })
+
+  it('没有模型时仍可打开可调度表单且不会自动提交', async () => {
+    const wrapper = mount(ReservationForm, {
+      props: { labs, initialAllocationMode: 'SCHEDULABLE', initialDate: '2026-11-03' },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+    expect((wrapper.get('[data-testid="allocation-schedulable"]').element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.find('[data-testid="window-start"]').exists()).toBe(true)
+    expect(http.post).not.toHaveBeenCalled()
+  })
+
   it('固定预约超过8片时提示结束时间错误', async () => {
     const wrapper = await mountForm()
     await fillCommon(wrapper)

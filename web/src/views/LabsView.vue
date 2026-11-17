@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import http, { errorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
-import type { Lab, LabAvailability, LabRules } from '../types'
+import type { Lab, LabAvailability, LabRules, SlotRecommendation, SlotRecommendations } from '../types'
 import { addDays, seatLabel, statusLabels, timeOnly, today } from '../utils'
 import SlotGrid, { type SlotRange } from '../components/SlotGrid.vue'
 import ReservationForm from '../components/ReservationForm.vue'
@@ -22,7 +22,18 @@ const selection = ref<SlotRange | null>(null)
 const showForm = ref(false)
 const success = ref('')
 const gridMode = ref<'ROOM' | 'SEAT'>('ROOM')
+const durationMinutes = ref(60)
+const attendeeCount = ref(1)
+const recommendations = ref<SlotRecommendation[]>([])
+const recommendationNote = ref('')
+const recommending = ref(false)
+const formKey = ref(0)
+watch([gridMode, durationMinutes, attendeeCount], () => {
+  recommendations.value = []
+  recommendationNote.value = ''
+})
 const canReserve = computed(() => auth.roles.includes('STUDENT') || auth.roles.includes('TEACHER'))
+const initialAllocationMode = computed<'FIXED' | 'SCHEDULABLE'>(() => route.query.allocation === 'SCHEDULABLE' ? 'SCHEDULABLE' : 'FIXED')
 const selectedLab = computed(() => labs.value.find((lab) => lab.labId === selectedLabId.value) || null)
 const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const headLabel = computed(() => {
@@ -68,12 +79,13 @@ async function loadLabs() {
     if (!labs.value.length) return
     selectedLabId.value = labs.value[0].labId
     await loadAvailability()
-    if (canReserve.value && route.query.draft === '1') showForm.value = true
+    if (canReserve.value && (route.query.draft === '1' || route.query.allocation === 'SCHEDULABLE')) showForm.value = true
   } catch (cause) { error.value = errorMessage(cause) }
 }
 async function loadAvailability() {
   if (!selectedLabId.value) return
   loading.value = true; error.value = ''; selection.value = null
+  recommendations.value = []; recommendationNote.value = ''
   try {
     const [nextRules, nextAvailability] = await Promise.all([
       http.get<LabRules>(`/api/labs/${selectedLabId.value}/rules`),
@@ -96,6 +108,46 @@ function shiftMonth(delta: number) {
   const iso = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
   date.value = iso
   loadAvailability()
+}
+function recommendationMessage(outcome: SlotRecommendations['outcome']) {
+  if (outcome === 'CREDIT_BLOCKED') return '信用分不足，无法推荐可预约时段'
+  if (outcome === 'RULE_BLOCKED') return '当前实验室、日期或人数不满足预约规则'
+  if (outcome === 'DURATION_UNFIT') return '此时长无法放入开放时间'
+  if (outcome === 'NONE_FREE') return '没有足够的连续空闲时段'
+  return ''
+}
+async function loadRecommendations() {
+  if (!selectedLabId.value) return
+  if (!attendeeCount.value || attendeeCount.value < 1) {
+    recommendations.value = []
+    recommendationNote.value = '请填写至少 1 人'
+    return
+  }
+  recommending.value = true
+  recommendationNote.value = ''
+  try {
+    const data = await http.get<SlotRecommendations>('/api/reservations/recommendations', {
+      params: {
+        labId: selectedLabId.value,
+        date: date.value,
+        durationMinutes: durationMinutes.value,
+        reservationMode: gridMode.value,
+        attendeeCount: attendeeCount.value,
+      },
+    })
+    recommendations.value = data.recommendations
+    recommendationNote.value = recommendationMessage(data.outcome)
+  } catch (cause) {
+    recommendations.value = []
+    recommendationNote.value = errorMessage(cause)
+  } finally {
+    recommending.value = false
+  }
+}
+function applyRecommendation(item: SlotRecommendation) {
+  selection.value = { start: item.startSlot, end: item.endSlot - 1 }
+  formKey.value += 1
+  showForm.value = true
 }
 function onReserved() {
   showForm.value = false
@@ -145,6 +197,13 @@ onMounted(loadLabs)
         <p>签到窗口开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟。</p>
       </div>
       <div v-if="canReserve && labs.length">
+        <label class="field"><span>时长</span><select v-model.number="durationMinutes" data-testid="recommend-duration"><option v-for="minutes in 8" :key="minutes" :value="minutes * 30">{{ minutes * 30 }} 分钟</option></select></label>
+        <label class="field"><span>人数</span><input v-model.number="attendeeCount" data-testid="recommend-attendees" type="number" min="1"></label>
+        <button class="recommend" type="button" data-testid="recommend" :disabled="recommending" @click="loadRecommendations">{{ recommending ? '正在计算…' : '推荐空闲时段' }}</button>
+        <p v-if="recommendationNote" class="seat-note" data-testid="recommendation-note">{{ recommendationNote }}</p>
+        <div v-if="recommendations.length" class="recommendations">
+          <button v-for="item in recommendations" :key="`${item.startSlot}-${item.endSlot}`" class="candidate" type="button" data-testid="recommendation" @click="applyRecommendation(item)">{{ item.startTime }}–{{ item.endTime }}</button>
+        </div>
         <div class="range" :class="{ active: Boolean(selection) }">
           <span>{{ selection ? rangeText : '在开放格上点选一段连续时段' }}</span>
           <button v-if="selection" class="reset" type="button" @click="selection = null">重置</button>
@@ -161,7 +220,7 @@ onMounted(loadLabs)
       <SlotGrid v-else-if="availability && selectedLab" v-model="selection" :slots="availability.slots" :mode="gridMode" :date="date" :disabled="availability.labStatus !== 'ACTIVE' || !dayRule" :open-time="openTime" :close-time="closeTime" />
     </section>
     <el-dialog v-if="canReserve" v-model="showForm" title="新建预约" width="760px" destroy-on-close>
-      <ReservationForm :labs="labs.filter((lab) => lab.status === 'ACTIVE')" :initial-lab-id="selectedLabId" :initial-date="date" :selected-range="selection" @submitted="onReserved" />
+      <ReservationForm :key="formKey" :labs="labs.filter((lab) => lab.status === 'ACTIVE')" :initial-lab-id="selectedLabId" :initial-date="date" :initial-allocation-mode="selection ? 'FIXED' : initialAllocationMode" :initial-reservation-mode="gridMode" :initial-attendee-count="attendeeCount" :selected-range="selection" @submitted="onReserved" />
     </el-dialog>
   </div>
 </template>
@@ -192,6 +251,12 @@ onMounted(loadLabs)
 .range { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 24px; color: var(--muted); font-size: 14px; }
 .range.active { color: var(--ink); font-weight: 500; }
 .range .reset { appearance: none; padding: 0; color: var(--muted); background: none; border: 0; border-radius: 0; cursor: pointer; font-size: 12px; font-weight: 400; }
+.field { display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
+.field input, .field select { width: 100%; min-height: 36px; box-sizing: border-box; padding: 8px 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0; outline: none; font: 14px "IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif; }
+.recommend, .candidate { appearance: none; width: 100%; height: 36px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0; box-shadow: none; cursor: pointer; font-size: 14px; }
+.recommend { margin-top: 8px; }
+.recommendations { display: grid; gap: 4px; }
+.candidate { padding: 0 12px; text-align: left; }
 .go { appearance: none; width: 100%; height: 44px; margin-top: 12px; color: #fff; background: var(--ink); border: 0; border-radius: 0; cursor: pointer; font-size: 15px; font-weight: 500; }
 .ruler-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--paper); }
 .main-head { display: flex; align-items: center; justify-content: space-between; height: 48px; flex: 0 0 auto; padding: 0 24px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 14px; }

@@ -8,18 +8,28 @@ import type { SlotRange } from './SlotGrid.vue'
 
 type FieldKey = 'labId' | 'date' | 'purpose' | 'attendeeCount' | 'startTime' | 'endTime' | 'windowStart' | 'windowEnd' | 'durationMinutes' | 'seatCount'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   labs: Lab[]
   initialLabId?: number | null
   initialDate?: string
   selectedRange?: SlotRange | null
-}>()
+  initialReservationMode?: 'ROOM' | 'SEAT'
+  initialAttendeeCount?: number
+  initialAllocationMode?: 'FIXED' | 'SCHEDULABLE'
+}>(), {
+  initialLabId: null,
+  initialDate: '',
+  selectedRange: null,
+  initialReservationMode: 'ROOM',
+  initialAttendeeCount: 1,
+  initialAllocationMode: 'FIXED',
+})
 const emit = defineEmits<{ submitted: [reservation: Reservation] }>()
 
 const startOptions = Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
 const endOptions = [...startOptions.slice(1), '24:00']
 const form = reactive({
-  allocationMode: 'FIXED' as 'FIXED' | 'SCHEDULABLE',
+  allocationMode: props.initialAllocationMode,
   labId: props.initialLabId ?? null as number | null,
   date: props.initialDate || addDays(today(), 1),
   startTime: '09:00',
@@ -27,9 +37,9 @@ const form = reactive({
   windowStart: '08:00',
   windowEnd: '12:00',
   durationMinutes: 60,
-  reservationMode: 'ROOM' as 'ROOM' | 'SEAT',
-  attendeeCount: 1,
-  seatCount: 1,
+  reservationMode: props.initialReservationMode,
+  attendeeCount: props.initialAttendeeCount,
+  seatCount: props.initialAttendeeCount,
   purpose: '',
   zoneCode: '',
   nearWindow: '' as '' | 'true' | 'false',
@@ -59,7 +69,7 @@ watch(() => props.selectedRange, (range) => {
 
 onMounted(() => {
   const draft = draftStore.takeDraft()
-  if (!draft) return
+  if (!draft || draft.allocationMode !== 'FIXED') return
   form.allocationMode = 'FIXED'
   form.labId = draft.labId
   form.date = draft.date
