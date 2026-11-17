@@ -1,6 +1,5 @@
 .page { padding-left: 0; padding-right: 0; }
-.page-title, .page-subtitle, .picker-row, .filters, .rule-note, .error, .loading, .empty, .selection-bar { margin-left: 28rpx; margin-right: 28rpx; }
-.page-title { font-size: 36rpx; font-weight: 600; }
+.page-subtitle, .picker-row, .filters, .rule-note, .error, .loading, .empty, .selection-bar { margin-left: 28rpx; margin-right: 28rpx; }
 .page-subtitle { margin: 8rpx 28rpx 16rpx; color: #525252; font-size: 24rpx; }
 .picker-row { display: flex; min-height: 88rpx; padding: 8rpx 0; align-items: center; justify-content: space-between; border-bottom: 2rpx solid #ececec; font-weight: 500; }
 .filters { display: flex; align-items: center; justify-content: space-between; margin-top: 8rpx; margin-bottom: 16rpx; padding: 8rpx 0; border-bottom: 2rpx solid #ececec; }

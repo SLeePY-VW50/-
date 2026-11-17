@@ -259,7 +259,7 @@ describe('authentication pages', () => {
     expect(values.get('campus.lab.token')).toBe('jwt-dev')
     expect(page.data.password).toBe('')
     expect(page.data.loading).toBe(false)
-    expect(switchTab).toHaveBeenCalledWith({ url: '/pages/home/index' })
+    expect(switchTab).toHaveBeenCalledWith({ url: '/pages/labs/index' })
   })
 
   it('hides development login outside develop and rejects incomplete forms without loading', async () => {
@@ -371,7 +371,7 @@ describe('authentication pages', () => {
     expect(values.get('campus.lab.token')).toBe('jwt-bind')
     expect(page.data.password).toBe('')
     expect(page.data.loading).toBe(false)
-    expect(switchTab).toHaveBeenCalledWith({ url: '/pages/home/index' })
+    expect(switchTab).toHaveBeenCalledWith({ url: '/pages/labs/index' })
   })
 
   it('shows binding errors and clears the password without saving a session', async () => {
