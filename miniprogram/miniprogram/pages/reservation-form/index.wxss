@@ -11,4 +11,7 @@
 .purpose { width: 100%; min-height: 160rpx; margin-top: 12rpx; padding: 20rpx; background: #ffffff; border: 2rpx solid #ececec; }
 .error { margin-top: 24rpx; }
 .success { margin: 24rpx 0 20rpx; padding: 22rpx; color: #171717; background: #ffffff; border: 2rpx solid #ececec; }
+.confirm-row { display: flex; align-items: center; gap: 16rpx; min-height: 96rpx; margin-top: 24rpx; color: #171717; }
+.confirm-box { width: 32rpx; height: 32rpx; border: 2rpx solid #171717; border-radius: 0; background: #ffffff; }
+.confirm-box.on { background: #171717; }
 .submit-button { min-height: 96rpx; margin-top: 24rpx; line-height: 96rpx; }

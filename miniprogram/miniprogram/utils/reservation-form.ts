@@ -26,6 +26,14 @@ function minute(value: string, endBoundary = false) {
   return hour * 60 + minutePart
 }
 
+export function prepareReservationSubmit(form: ReservationFormState, confirmed: boolean): CreateReservationPayload {
+  const payload = buildReservationPayload(form)
+  if (form.allocationMode === 'SCHEDULABLE' && !confirmed) {
+    throw new Error('未经确认不能提交可调度预约')
+  }
+  return payload
+}
+
 export function buildReservationPayload(form: ReservationFormState): CreateReservationPayload {
   if (!Number.isFinite(form.attendeeCount) || !Number.isInteger(form.attendeeCount)) {
     throw new Error('人数必须为有限正整数')

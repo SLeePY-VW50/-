@@ -139,6 +139,36 @@ class RoutesTest(unittest.TestCase):
         self.assertNotIn("13812345678", str(self.history.values))
         self.assertNotIn("Secret123", str(self.history.values))
 
+    def test_invoke_returns_schedulable_draft_without_submitting(self):
+        self.agent.result = AgentResult(
+            answer="可以提交可调度请求",
+            draft={
+                "allocationMode": "SCHEDULABLE",
+                "date": "2026-11-02",
+                "windowStart": "08:00",
+                "windowEnd": "12:00",
+                "durationMinutes": 90,
+                "reservationMode": "SEAT",
+                "attendeeCount": 3,
+                "preferences": {},
+            },
+            sources=["rules"],
+            generated_at=datetime(2026, 10, 31, tzinfo=timezone.utc),
+        )
+
+        response = self.client.post(
+            "/api/ai/chat/invoke", json=self.request_body(), headers={"Authorization": "Bearer user"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        draft = response.json()["draft"]
+        self.assertEqual(draft["allocationMode"], "SCHEDULABLE")
+        self.assertEqual(draft["windowStart"], "08:00")
+        self.assertEqual(draft["windowEnd"], "12:00")
+        self.assertEqual(draft["durationMinutes"], 90)
+        self.assertEqual(draft["attendeeCount"], 3)
+        self.assertNotIn("reservationId", response.text)
+
     def test_model_exception_is_unavailable_without_fake_answer(self):
         self.agent.error = TimeoutError("timeout")
 

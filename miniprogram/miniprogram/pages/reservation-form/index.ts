@@ -1,7 +1,7 @@
 import { createReservation } from '../../api/reservations'
 import { errorMessage } from '../../api/http'
 import { restoreSession } from '../../auth/session'
-import { buildReservationPayload } from '../../utils/reservation-form'
+import { prepareReservationSubmit } from '../../utils/reservation-form'
 
 Page({
   data: {
@@ -26,23 +26,32 @@ Page({
     durationOptions: [30, 60, 90, 120, 150, 180, 210, 240],
     durationIndex: 1,
     submitting: false,
+    confirmed: false,
     error: '',
     success: '',
   },
 
   async onLoad(query: Record<string, string>) {
     if (!await restoreSession()) return
-    this.setData({
+    const next: Record<string, string | number | boolean> = {
       labId: Number(query.labId),
       date: query.date ?? '',
       startTime: (query.startTime ?? '09:00').slice(0, 5),
       endTime: (query.endTime ?? '10:00').slice(0, 5),
       reservationMode: query.mode === 'ROOM' ? 'ROOM' : 'SEAT',
-    })
+      confirmed: false,
+    }
+    if (query.attendeeCount) next.attendeeCount = Number(query.attendeeCount)
+    if (query.allocationMode === 'SCHEDULABLE' || query.allocationMode === 'FIXED') next.allocationMode = query.allocationMode
+    this.setData(next)
   },
 
   onAllocation(event: WechatMiniprogram.TouchEvent) {
-    this.setData({ allocationMode: event.currentTarget.dataset.value })
+    this.setData({ allocationMode: event.currentTarget.dataset.value, confirmed: false })
+  },
+
+  toggleConfirm() {
+    this.setData({ confirmed: !this.data.confirmed })
   },
 
   onMode(event: WechatMiniprogram.TouchEvent) {
@@ -75,9 +84,9 @@ Page({
   async submit() {
     if (this.data.submitting) return
 
-    let payload: ReturnType<typeof buildReservationPayload>
+    let payload: ReturnType<typeof prepareReservationSubmit>
     try {
-      payload = buildReservationPayload(this.data)
+      payload = prepareReservationSubmit(this.data, this.data.confirmed)
     } catch (error) {
       this.setData({ error: errorMessage(error), success: '' })
       return

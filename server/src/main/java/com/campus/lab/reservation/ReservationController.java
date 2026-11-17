@@ -7,6 +7,7 @@ import com.campus.lab.reservation.dto.CancelReservationRequest;
 import com.campus.lab.reservation.dto.CreateReservationRequest;
 import com.campus.lab.reservation.dto.PageView;
 import com.campus.lab.reservation.dto.ReservationView;
+import com.campus.lab.reservation.dto.SlotRecommendationsView;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,14 +27,17 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final ReservationQueryService queryService;
     private final ReservationLifecycleService lifecycleService;
+    private final SlotRecommendationService recommendationService;
 
     public ReservationController(
             ReservationService reservationService,
             ReservationQueryService queryService,
-            ReservationLifecycleService lifecycleService) {
+            ReservationLifecycleService lifecycleService,
+            SlotRecommendationService recommendationService) {
         this.reservationService = reservationService;
         this.queryService = queryService;
         this.lifecycleService = lifecycleService;
+        this.recommendationService = recommendationService;
     }
 
     @PostMapping
@@ -61,6 +65,20 @@ public class ReservationController {
             @RequestBody BatchReservationRequest request, Authentication authentication) {
         long userId = Long.parseLong(authentication.getName());
         return ApiResponse.success(reservationService.createBatch(userId, request));
+    }
+
+    @GetMapping("/recommendations")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('STUDENT','TEACHER')")
+    public ApiResponse<SlotRecommendationsView> recommendations(
+            @RequestParam long labId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam int durationMinutes,
+            @RequestParam ReservationMode reservationMode,
+            @RequestParam int attendeeCount,
+            Authentication authentication) {
+        long userId = Long.parseLong(authentication.getName());
+        return ApiResponse.success(recommendationService.recommend(
+                userId, labId, date, durationMinutes, reservationMode, attendeeCount));
     }
 
     @GetMapping("/my")

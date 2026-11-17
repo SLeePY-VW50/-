@@ -1,6 +1,7 @@
-import { labAvailability, labRules, listLabs } from '../../api/resources'
+import { labAvailability, labRules, listLabs, slotRecommendations } from '../../api/resources'
 import { errorMessage } from '../../api/http'
-import type { Lab, LabAvailability, LabRules, TimeRule } from '../../api/types'
+import type { Lab, LabAvailability, LabRules, SlotRecommendation, TimeRule } from '../../api/types'
+import { recommendationFormQuery, recommendationNote } from '../../utils/recommendations'
 import { addDays, today, timeOnly } from '../../utils/format'
 import { restoreSession } from '../../auth/session'
 import type { SlotRange } from '../../utils/slots'
@@ -20,6 +21,13 @@ Page({
     closeTime: '24:00',
     selection: null as SlotRange | null,
     selectedText: '',
+    durationMinutes: 60,
+    durationOptions: [30, 60, 90, 120, 150, 180, 210, 240],
+    durationIndex: 1,
+    attendeeCount: 1,
+    recommendations: [] as SlotRecommendation[],
+    recommendationNote: '',
+    recommending: false,
     loading: false,
     error: '',
     errorSource: '' as '' | 'labs' | 'availability',
@@ -65,7 +73,15 @@ Page({
       this.setData({ loading: false })
       return
     }
-    this.setData({ loading: true, error: '', errorSource: '', selection: null, selectedText: '' })
+    this.setData({
+      loading: true,
+      error: '',
+      errorSource: '',
+      selection: null,
+      selectedText: '',
+      recommendations: [],
+      recommendationNote: '',
+    })
     try {
       const [rules, availability] = await Promise.all([
         labRules(labId),
@@ -109,7 +125,67 @@ Page({
   },
 
   onMode(event: WechatMiniprogram.TouchEvent) {
-    this.setData({ mode: event.currentTarget.dataset.mode, selection: null, selectedText: '' })
+    this.setData({
+      mode: event.currentTarget.dataset.mode,
+      selection: null,
+      selectedText: '',
+      recommendations: [],
+      recommendationNote: '',
+    })
+  },
+
+  onDuration(event: WechatMiniprogram.PickerChange) {
+    const durationIndex = Number(event.detail.value)
+    this.setData({
+      durationIndex,
+      durationMinutes: this.data.durationOptions[durationIndex],
+      recommendations: [],
+      recommendationNote: '',
+    })
+  },
+
+  onAttendees(event: WechatMiniprogram.Input) {
+    this.setData({ attendeeCount: Number(event.detail.value), recommendations: [], recommendationNote: '' })
+  },
+
+  async loadRecommendations() {
+    const attendees = Number(this.data.attendeeCount)
+    if (!this.data.labId || !Number.isInteger(attendees) || attendees < 1) {
+      this.setData({ recommendations: [], recommendationNote: '请填写至少 1 人' })
+      return
+    }
+    this.setData({ recommending: true, recommendationNote: '' })
+    try {
+      const data = await slotRecommendations(
+        this.data.labId,
+        this.data.date,
+        this.data.durationMinutes,
+        this.data.mode,
+        attendees,
+      )
+      this.setData({
+        recommendations: data.recommendations,
+        recommendationNote: recommendationNote(data.outcome),
+      })
+    } catch (error) {
+      this.setData({ recommendations: [], recommendationNote: errorMessage(error) })
+    } finally {
+      this.setData({ recommending: false })
+    }
+  },
+
+  useRecommendation(event: WechatMiniprogram.TouchEvent) {
+    const item = this.data.recommendations[Number(event.currentTarget.dataset.index)]
+    if (!item) return
+    const query = recommendationFormQuery({
+      labId: this.data.labId,
+      date: this.data.date,
+      mode: this.data.mode,
+      attendeeCount: Number(this.data.attendeeCount),
+      startTime: item.startTime,
+      endTime: item.endTime,
+    })
+    wx.navigateTo({ url: `/pages/reservation-form/index?${query}` })
   },
 
   onSelection(event: WechatMiniprogram.CustomEvent<SlotRange>) {

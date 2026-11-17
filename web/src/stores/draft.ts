@@ -6,7 +6,7 @@ export const useDraftStore = defineStore('reservation-draft', () => {
   const draft = ref<ReservationDraft | null>(null)
 
   function setDraft(value: ReservationDraft) {
-    draft.value = { ...value, preferences: { ...value.preferences } }
+    draft.value = { ...value, preferences: { ...(value.preferences ?? {}) } }
   }
 
   function takeDraft() {

@@ -37,6 +37,9 @@ class InternalToolsTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertNotIn("userId", query_my_reservations.args_schema.model_fields)
         self.assertNotIn("user_id", query_my_reservations.args_schema.model_fields)
+        names = " ".join(tool.name for tool in ALL_TOOLS)
+        for banned in ("submit", "create", "cancel", "update", "delete", "write"):
+            self.assertNotIn(banned, names)
 
     async def test_my_reservations_uses_verified_context_user_id(self):
         result = await query_my_reservations.ainvoke({"status": "APPROVED"})

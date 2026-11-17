@@ -1,6 +1,7 @@
 package com.campus.lab.reservation;
 
 import com.campus.lab.common.BusinessException;
+import com.campus.lab.common.DayTimes;
 import com.campus.lab.reservation.dto.ReservationSeatView;
 import com.campus.lab.reservation.dto.ReservationView;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,6 +47,25 @@ public class ReservationRepository {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "用户不存在或不可用");
         }
         return users.getFirst();
+    }
+
+    public UserAdmission findUser(long userId) {
+        List<UserAdmission> users = jdbcTemplate.query("""
+                SELECT status, credit_score FROM sys_user WHERE user_id = ?
+                """, (rs, rowNum) -> new UserAdmission(rs.getString(1), rs.getInt(2)), userId);
+        return users.isEmpty() ? null : users.getFirst();
+    }
+
+    public List<OccupiedWindow> effectiveWindows(long userId, LocalDate date) {
+        return jdbcTemplate.query("""
+                SELECT request_window_start, request_window_end
+                FROM t_reservation
+                WHERE user_id = ? AND request_date = ?
+                  AND status IN ('PENDING_SCHEDULE', 'APPROVED', 'IN_USE')
+                """, (rs, rowNum) -> new OccupiedWindow(
+                        DayTimes.minuteOfDay(DayTimes.parseDatabaseTime(rs.getString(1)), false),
+                        DayTimes.minuteOfDay(DayTimes.parseDatabaseTime(rs.getString(2)), true)),
+                userId, date);
     }
 
     public int creditThreshold() {
@@ -644,6 +664,9 @@ public class ReservationRepository {
     }
 
     public record UserAdmission(String status, int creditScore) {
+    }
+
+    public record OccupiedWindow(int startMinute, int endMinute) {
     }
 
     public record LabDetails(long labId, String name, int capacity, ResourceStatus status) {
