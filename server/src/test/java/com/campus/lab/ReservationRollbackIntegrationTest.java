@@ -117,7 +117,7 @@ class ReservationRollbackIntegrationTest extends AbstractReservationNonTransacti
 
     private CreateReservationRequest fixedRequest() {
         return new CreateReservationRequest(
-                AllocationMode.FIXED, labId, DATE, "09:00", "10:00",
+                AllocationMode.FIXED, labId, DATE, "09:15", "10:00",
                 null, null, null, ReservationMode.SEAT, 1, 1,
                 "独立回滚测试", ReservationPreferences.empty());
     }

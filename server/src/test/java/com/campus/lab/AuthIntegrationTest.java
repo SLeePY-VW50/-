@@ -22,7 +22,8 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "sys_user", "sys_role", "sys_permission", "sys_user_role", "sys_role_permission",
-            "t_lab", "t_lab_seat", "t_device", "t_time_rule", "t_slot_bitmap", "t_seat_bitmap",
+            "t_lab", "t_lab_seat", "t_device", "t_time_rule", "t_period_set", "t_period",
+            "t_slot_bitmap", "t_seat_bitmap",
             "t_sys_config", "t_reservation_batch", "t_reservation", "t_reservation_seat",
             "t_reservation_log", "t_violation", "t_credit_record", "t_appeal",
             "t_schedule_task", "t_schedule_result", "t_algorithm_experiment", "t_stat_daily");
@@ -39,7 +40,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                   AND table_type = 'BASE TABLE'
                   AND table_name <> 'flyway_schema_history'
                 """, String.class);
-        assertThat(tables).hasSize(23);
+        assertThat(tables).hasSize(25);
         assertThat(tables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
 
         Set<String> reservationColumns = jdbcTemplate.queryForList("""
@@ -85,6 +86,8 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .containsEntry("cancel.free.before.hours", "2")
                 .containsEntry("reservation.duration.min.minutes", "30")
                 .containsEntry("reservation.duration.max.minutes", "240")
+                .containsEntry("reservation.duration.min.periods", "1")
+                .containsEntry("reservation.duration.max.periods", "5")
                 .containsEntry("reservation.advance.min.days", "1")
                 .containsEntry("reservation.advance.max.days", "14")
                 .containsEntry("schedule.primary.algorithm", "GREEDY")
@@ -229,7 +232,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 SELECT COUNT(*) FROM t_time_rule r
                 JOIN t_lab l ON l.lab_id = r.lab_id
                 WHERE l.lab_code IN ('LAB-A', 'LAB-B')
-                  AND (r.open_time <> '08:00:00' OR r.close_time <> '22:00:00')
+                  AND (r.open_time <> '08:30:00' OR r.close_time <> '17:30:00')
                 """, Integer.class)).isZero();
 
         String terminalHash = jdbcTemplate.queryForObject("""
@@ -405,7 +408,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 "SELECT lab_id FROM t_lab WHERE lab_code = 'LAB-OTHER'", Long.class);
         jdbcTemplate.update("""
                 INSERT INTO t_time_rule (lab_id, day_of_week, open_time, close_time)
-                VALUES (?, 1, '09:00:00', '21:00:00')
+                VALUES (?, 1, '09:15:00', '12:30:00')
                 """, otherLabId);
         jdbcTemplate.update("""
                 INSERT INTO t_lab_seat
@@ -417,8 +420,8 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                     (user_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
                      lab_id, start_time, end_time, attendee_count, seat_count, purpose, status)
-                VALUES (?, 'FIXED', 'SEAT', '2026-11-02', '09:00:00', '10:00:00', 60,
-                        ?, '2026-11-02 09:00:00', '2026-11-02 10:00:00', 1, 1,
+                VALUES (?, 'FIXED', 'SEAT', '2026-11-02', '09:15:00', '10:00:00', 45,
+                        ?, '2026-11-02 09:15:00', '2026-11-02 10:00:00', 1, 1,
                         'non-demo-fixture', 'APPROVED')
                 """, otherUserId, otherLabId);
     }

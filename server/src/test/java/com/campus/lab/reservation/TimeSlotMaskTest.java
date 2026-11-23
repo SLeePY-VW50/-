@@ -3,110 +3,85 @@ package com.campus.lab.reservation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.campus.lab.period.DongfangPeriodTable;
+import com.campus.lab.period.PeriodSchedule;
 import java.time.LocalTime;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 class TimeSlotMaskTest {
 
+    private final PeriodSchedule schedule = DongfangPeriodTable.schedule();
+
     @Test
     void createsContiguousMaskUsingExclusiveEndSlot() {
-        assertThat(TimeSlotMask.of(0, 1))
-                .isEqualTo(new TimeSlotMask(0, 1, 1L));
-        assertThat(TimeSlotMask.of(16, 18).value())
-                .isEqualTo((1L << 16) | (1L << 17));
+        assertThat(TimeSlotMask.of(0, 1)).isEqualTo(new TimeSlotMask(0, 1, 1L));
+        assertThat(TimeSlotMask.of(1, 3).value()).isEqualTo((1L << 1) | (1L << 2));
         assertThat(TimeSlotMask.of(0, 8).value()).isEqualTo(255L);
     }
 
     @Test
-    void convertsAlignedLocalTimesToSlots() {
-        assertThat(TimeSlotMask.between(LocalTime.of(8, 0), LocalTime.of(9, 0)))
-                .isEqualTo(TimeSlotMask.of(16, 18));
+    void periodBoundariesCoverWholePeriodsIncludingTheBreakBetweenThem() {
+        TimeSlotMask crossed = schedule.between(LocalTime.of(9, 15), LocalTime.of(10, 50));
+
+        assertThat(crossed).isEqualTo(TimeSlotMask.of(1, 3));
+        assertThat(crossed.periodCount()).isEqualTo(2);
+        assertThat(schedule.endTime(crossed.endSlot())).isEqualTo(LocalTime.of(10, 50));
     }
 
     @Test
-    void midnightEndMeans2400AndAllowsLastHalfHour() {
-        TimeSlotMask mask = TimeSlotMask.between(LocalTime.of(23, 30), LocalTime.MIDNIGHT);
+    void fullDefaultDayUsesThirteenBits() {
+        TimeSlotMask day = schedule.between(LocalTime.of(8, 30), LocalTime.of(20, 50));
 
-        assertThat(mask.startSlot()).isEqualTo(47);
-        assertThat(mask.endSlot()).isEqualTo(48);
-        assertThat(mask.value()).isEqualTo(1L << 47);
+        assertThat(day.startSlot()).isZero();
+        assertThat(day.endSlot()).isEqualTo(13);
+        assertThat(day.value()).isEqualTo(8191L);
     }
 
     @Test
-    void highestByteUsesOnlyLow48BitsWithoutWideShift() {
-        assertThat(TimeSlotMask.of(40, 48).value()).isEqualTo(255L << 40);
-        assertThat(TimeSlotMask.of(40, 48).value()).isPositive();
-    }
-
-    @ParameterizedTest
-    @MethodSource("nonAlignedTimes")
-    void rejectsNonAlignedStartOrEnd(LocalTime start, LocalTime end) {
-        assertThatThrownBy(() -> TimeSlotMask.between(start, end))
+    void rejectsTimesThatAreNotPeriodBoundaries() {
+        assertThatThrownBy(() -> schedule.between(LocalTime.of(9, 0), LocalTime.of(10, 0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("节次");
+        assertThatThrownBy(() -> schedule.between(LocalTime.of(8, 30), LocalTime.of(9, 0)))
                 .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    static Stream<Arguments> nonAlignedTimes() {
-        return Stream.of(
-                Arguments.of(LocalTime.of(8, 15), LocalTime.of(9, 0)),
-                Arguments.of(LocalTime.of(8, 0), LocalTime.of(9, 15)),
-                Arguments.of(LocalTime.of(8, 0, 1), LocalTime.of(9, 0)),
-                Arguments.of(LocalTime.of(8, 0), LocalTime.of(9, 0, 1)),
-                Arguments.of(LocalTime.of(8, 0, 0, 1), LocalTime.of(9, 0)),
-                Arguments.of(LocalTime.of(8, 0), LocalTime.of(9, 0, 0, 1)));
-    }
-
-    @Test
-    void rejectsCrossMidnightOtherThanMidnightEnd() {
-        assertThatThrownBy(() -> TimeSlotMask.between(
-                LocalTime.of(23, 30), LocalTime.of(0, 30)))
+        assertThatThrownBy(() -> schedule.between(LocalTime.of(8, 30), LocalTime.of(8, 30)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void rejectsZeroLengthAndMoreThanFourHours() {
-        assertThatThrownBy(() -> TimeSlotMask.of(1, 1))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> TimeSlotMask.between(LocalTime.MIDNIGHT, LocalTime.MIDNIGHT))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> TimeSlotMask.of(0, 9))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> TimeSlotMask.between(
-                LocalTime.of(8, 0), LocalTime.of(12, 30)))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @ParameterizedTest
-    @MethodSource("invalidSlotRanges")
-    void rejectsInvalidSlotRangesAndInconsistentValues(int start, int end, long value) {
-        assertThatThrownBy(() -> new TimeSlotMask(start, end, value))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    static Stream<Arguments> invalidSlotRanges() {
-        return Stream.of(
-                Arguments.of(-1, 1, 1L),
-                Arguments.of(0, 49, 1L),
-                Arguments.of(0, 1, 0L),
-                Arguments.of(0, 1, 2L),
-                Arguments.of(47, 48, -1L),
-                Arguments.of(0, 2, 1L));
+    void rejectsEmptyAndOutOfRangeSlotMasks() {
+        assertThatThrownBy(() -> TimeSlotMask.of(1, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> TimeSlotMask.of(0, 64)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new TimeSlotMask(0, 1, 2L)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void containsAndOverlapsFollowSetSemantics() {
-        TimeSlotMask nineToTen = TimeSlotMask.of(18, 20);
-        TimeSlotMask nineToEleven = TimeSlotMask.of(18, 22);
-        TimeSlotMask tenToEleven = TimeSlotMask.of(20, 22);
-        TimeSlotMask noon = TimeSlotMask.of(24, 26);
+        TimeSlotMask second = TimeSlotMask.of(1, 2);
+        TimeSlotMask secondAndThird = TimeSlotMask.of(1, 3);
+        TimeSlotMask third = TimeSlotMask.of(2, 3);
+        TimeSlotMask evening = TimeSlotMask.of(10, 11);
 
-        assertThat(nineToEleven.contains(nineToTen)).isTrue();
-        assertThat(nineToTen.contains(nineToEleven)).isFalse();
-        assertThat(nineToTen.overlaps(tenToEleven)).isFalse();
-        assertThat(nineToTen.overlaps(nineToEleven)).isTrue();
-        assertThat(nineToTen.overlaps(noon)).isFalse();
+        assertThat(secondAndThird.contains(second)).isTrue();
+        assertThat(second.contains(secondAndThird)).isFalse();
+        assertThat(second.overlaps(third)).isFalse();
+        assertThat(second.overlaps(secondAndThird)).isTrue();
+        assertThat(second.overlaps(evening)).isFalse();
+    }
+
+    @Test
+    void defaultOpenMaskClosesEveningPeriods() {
+        long open = schedule.bookableMask(LocalTime.of(8, 30), LocalTime.of(17, 30), 1, 10);
+
+        assertThat(open).isEqualTo((1L << 10) - 1);
+        assertThat(open & (1L << 10)).isZero();
+        assertThat(open & (1L << 12)).isZero();
+    }
+
+    @Test
+    void earlyCheckoutReleasesPeriodsThatHaveNotStarted() {
+        assertThat(schedule.firstReleasableSlot(LocalTime.of(9, 20))).isEqualTo(2);
+        assertThat(schedule.firstReleasableSlot(LocalTime.of(10, 2))).isEqualTo(2);
+        assertThat(schedule.firstReleasableSlot(LocalTime.of(9, 15))).isEqualTo(2);
     }
 }

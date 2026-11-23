@@ -87,7 +87,7 @@ final class DeterministicScheduler {
     private static double score(
             ScheduleDemand demand, ScheduleCandidate candidate,
             ScheduleResourceState state, ScheduleParameters parameters) {
-        double urgency = (double) demand.durationMinutes()
+        double urgency = (double) demand.durationPeriods()
                 / (demand.windowEnd() - demand.windowStart());
         double credit = demand.credit() / 100.0;
         return parameters.urgencyWeight() * urgency
@@ -103,7 +103,8 @@ final class DeterministicScheduler {
         while (left > 0 && (openMask & (1L << (left - 1))) != 0) {
             left--;
         }
-        while (right < 47 && (openMask & (1L << (right + 1))) != 0) {
+        int lastSlot = state.resource(candidate).periodSchedule().slotCount() - 1;
+        while (right < lastSlot && (openMask & (1L << (right + 1))) != 0) {
             right++;
         }
         return (double) (candidate.endSlot() - candidate.startSlot()) / (right - left + 1);
@@ -113,14 +114,15 @@ final class DeterministicScheduler {
         ScheduleLabResource resource = state.resource(candidate);
         long before = state.roomBlockingMask(candidate);
         long after = before | candidate.timeMask().value();
-        int minimumSlots = Math.max(1, resource.effectiveRule().minDurationMinutes() / 30);
+        int minimumSlots = Math.max(1, resource.effectiveRule().minPeriods());
         int freeBefore = TimeFragments.freeSlots(resource.openMask(), before);
         if (freeBefore == 0) {
             return 0;
         }
+        int slotCount = resource.periodSchedule().slotCount();
         int additional = Math.max(0,
-                TimeFragments.fragmentedFreeSlots(resource.openMask(), after, minimumSlots)
-                - TimeFragments.fragmentedFreeSlots(resource.openMask(), before, minimumSlots));
+                TimeFragments.fragmentedFreeSlots(resource.openMask(), after, minimumSlots, slotCount)
+                - TimeFragments.fragmentedFreeSlots(resource.openMask(), before, minimumSlots, slotCount));
         return (double) additional / freeBefore;
     }
 

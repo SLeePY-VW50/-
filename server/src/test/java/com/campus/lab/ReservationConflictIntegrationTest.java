@@ -41,7 +41,7 @@ class ReservationConflictIntegrationTest extends AbstractReservationNonTransacti
     void seatAfterRoomReturns409AndKeepsCommittedRoomOccupancy() {
         ReservationView room = reservationService.create(userId, request(ReservationMode.ROOM, 4));
         OccupancySnapshot before = snapshot(room.resvId());
-        long expectedMask = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         assertThat(before.roomMask()).isEqualTo(expectedMask);
         assertThat(before.roomVersion()).isEqualTo(1);
         assertThat(before.assignments()).hasSize(4);
@@ -57,7 +57,7 @@ class ReservationConflictIntegrationTest extends AbstractReservationNonTransacti
     void roomAfterSeatReturns409AndKeepsCommittedSeatOccupancy() {
         ReservationView seat = reservationService.create(userId, request(ReservationMode.SEAT, 2));
         OccupancySnapshot before = snapshot(seat.resvId());
-        long expectedMask = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         assertThat(before.roomMask()).isZero();
         assertThat(before.roomVersion()).isZero();
         assertThat(before.assignments()).hasSize(2);
@@ -80,7 +80,7 @@ class ReservationConflictIntegrationTest extends AbstractReservationNonTransacti
 
     private CreateReservationRequest request(ReservationMode mode, int count) {
         return new CreateReservationRequest(
-                AllocationMode.FIXED, labId, DATE, "09:00", "10:00",
+                AllocationMode.FIXED, labId, DATE, "09:15", "10:00",
                 null, null, null, mode, count, mode == ReservationMode.SEAT ? count : null,
                 "独立事务双向冲突测试", ReservationPreferences.empty());
     }

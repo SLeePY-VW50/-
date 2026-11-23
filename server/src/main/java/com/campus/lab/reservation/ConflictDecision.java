@@ -25,10 +25,14 @@ public record ConflictDecision(
 
     public static ConflictDecision failure(long conflictMask, List<String> reasons) {
         List<Integer> slots = new ArrayList<>();
-        for (int slot = 0; slot < TimeSlotMask.SLOTS_PER_DAY; slot++) {
-            if ((conflictMask & (1L << slot)) != 0) {
+        long remaining = conflictMask;
+        int slot = 0;
+        while (remaining != 0) {
+            if ((remaining & 1L) != 0) {
                 slots.add(slot);
             }
+            remaining >>>= 1;
+            slot++;
         }
         return new ConflictDecision(false, conflictMask, slots, List.of(), reasons);
     }

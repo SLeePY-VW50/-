@@ -13,7 +13,7 @@ public record ScheduleDemand(
         LocalDate date,
         int windowStart,
         int windowEnd,
-        int durationMinutes,
+        int durationPeriods,
         ReservationMode mode,
         int attendeeCount,
         int seatCount,
@@ -29,13 +29,11 @@ public record ScheduleDemand(
         Objects.requireNonNull(mode, "mode");
         Objects.requireNonNull(allowedLabIds, "allowedLabIds");
         allowedLabIds = Set.copyOf(allowedLabIds);
-        if (windowStart < 0 || windowEnd > 1440 || windowEnd <= windowStart
-                || windowStart % 30 != 0 || windowEnd % 30 != 0) {
-            throw new IllegalArgumentException("预约窗口必须按30分钟对齐且位于0..1440内");
+        if (windowStart < 0 || windowEnd > 1440 || windowEnd <= windowStart) {
+            throw new IllegalArgumentException("预约窗口必须位于0..1440内");
         }
-        if (durationMinutes < 30 || durationMinutes > 240 || durationMinutes % 30 != 0
-                || durationMinutes > windowEnd - windowStart) {
-            throw new IllegalArgumentException("预约时长必须为30..240内的30分钟倍数且不超过窗口");
+        if (durationPeriods < 1 || durationPeriods > com.campus.lab.reservation.TimeSlotMask.MAX_BITS) {
+            throw new IllegalArgumentException("预约节数必须为正整数且不超过位图容量");
         }
         if (attendeeCount <= 0 || seatCount < 0
                 || (mode == ReservationMode.SEAT && seatCount == 0)

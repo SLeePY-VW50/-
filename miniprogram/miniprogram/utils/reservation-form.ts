@@ -17,6 +17,9 @@ export interface ReservationFormState {
   minSpecLevel: string
 }
 
+const PERIOD_STARTS = ['08:30', '09:15', '10:05', '11:00', '11:45', '13:30', '14:15', '15:05', '16:00', '16:45', '18:30', '19:15', '20:05']
+const PERIOD_ENDS = ['09:15', '10:00', '10:50', '11:45', '12:30', '14:15', '15:00', '15:50', '16:45', '17:30', '19:15', '20:00', '20:50']
+
 function minute(value: string, endBoundary = false) {
   const match = /^(\d{2}):(\d{2})$/.exec(value)
   if (!match) return null
@@ -48,17 +51,21 @@ export function buildReservationPayload(form: ReservationFormState): CreateReser
     const start = minute(form.startTime)
     const end = minute(form.endTime, true)
     if (start === null || end === null) throw new Error('时间必须为HH:mm格式，24:00仅允许作为结束时间')
-    if (start % 30 !== 0 || end % 30 !== 0) throw new Error('时间必须按30分钟对齐')
-    if (end <= start || end - start > 240) throw new Error('固定预约一次最多选择8个时间片')
+    const startIndex = PERIOD_STARTS.indexOf(form.startTime)
+    const endIndex = PERIOD_ENDS.indexOf(form.endTime)
+    if (startIndex < 0 || endIndex < 0) throw new Error('预约起止必须落在节次的开始和结束')
+    if (endIndex < startIndex || endIndex - startIndex + 1 > 5) throw new Error('固定预约一次最多选择5节')
   } else {
-    if (form.durationMinutes < 30 || form.durationMinutes > 240 || form.durationMinutes % 30 !== 0) {
-      throw new Error('可调度时长必须为30到240分钟之间的30分钟倍数')
+    if (!Number.isInteger(form.durationMinutes) || form.durationMinutes < 1 || form.durationMinutes > 5) {
+      throw new Error('可调度节数必须为1到5节')
     }
     const start = minute(form.windowStart)
     const end = minute(form.windowEnd, true)
     if (start === null || end === null) throw new Error('时间必须为HH:mm格式，24:00仅允许作为结束时间')
-    if (start % 30 !== 0 || end % 30 !== 0) throw new Error('时间必须按30分钟对齐')
-    if (end <= start || form.durationMinutes > end - start) throw new Error('预约时长不能超过可调度请求窗口')
+    const startIndex = PERIOD_STARTS.indexOf(form.windowStart)
+    const endIndex = PERIOD_ENDS.indexOf(form.windowEnd)
+    if (startIndex < 0 || endIndex < 0) throw new Error('预约起止必须落在节次的开始和结束')
+    if (end <= start || form.durationMinutes > endIndex - startIndex + 1) throw new Error('预约节数不能超过可调度请求窗口')
   }
 
   return {
@@ -69,7 +76,7 @@ export function buildReservationPayload(form: ReservationFormState): CreateReser
     endTime: fixed ? form.endTime : null,
     windowStart: fixed ? null : form.windowStart,
     windowEnd: fixed ? null : form.windowEnd,
-    durationMinutes: fixed ? null : form.durationMinutes,
+    durationPeriods: fixed ? null : form.durationMinutes,
     reservationMode: form.reservationMode,
     attendeeCount: form.attendeeCount,
     seatCount: form.reservationMode === 'SEAT' ? form.attendeeCount : null,

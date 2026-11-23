@@ -1,6 +1,9 @@
 package com.campus.lab.reservation;
 
 import com.campus.lab.common.BusinessException;
+import com.campus.lab.common.DayTimes;
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.dto.CreateReservationRequest;
 import com.campus.lab.reservation.dto.ReservationPreferences;
 import java.time.LocalTime;
@@ -12,6 +15,12 @@ import org.springframework.stereotype.Component;
 public class ReservationRequestValidator {
 
     private static final Set<String> SPEC_LEVELS = Set.of("STANDARD", "HIGH", "GPU");
+
+    private final PeriodCatalog periodCatalog;
+
+    public ReservationRequestValidator(PeriodCatalog periodCatalog) {
+        this.periodCatalog = periodCatalog;
+    }
 
     public NormalizedReservation normalize(CreateReservationRequest request) {
         if (request == null || request.allocationMode() == null) {
@@ -30,40 +39,37 @@ public class ReservationRequestValidator {
         }
         LocalTime start = parseTime(request.startTime(), false);
         LocalTime end = parseTime(request.endTime(), true);
-        TimeSlotMask mask;
-        try {
-            mask = TimeSlotMask.between(start, end);
-        } catch (IllegalArgumentException exception) {
-            throw badRequest(exception.getMessage());
-        }
+        PeriodSchedule schedule = scheduleFor(request.labId());
+        TimeSlotMask mask = maskOf(schedule, start, end);
         validateSeatCount(request);
         ReservationPreferences preferences = preferences(request);
         if (!preferences.allowedLabIds().isEmpty()
                 && !preferences.allowedLabIds().contains(request.labId())) {
             throw badRequest("指定实验室不在allowedLabIds候选范围内");
         }
-        int duration = (mask.endSlot() - mask.startSlot()) * 30;
+        int minutes = DayTimes.minuteOfDay(end, true) - DayTimes.minuteOfDay(start, false);
         return new NormalizedReservation(
-                request.allocationMode(), request.labId(), request.date(), start, end, duration,
-                request.reservationMode(), request.attendeeCount(), request.seatCount(),
-                request.purpose().trim(), preferences, mask);
+                request.allocationMode(), request.labId(), request.date(), start, end, minutes,
+                mask.periodCount(), request.reservationMode(), request.attendeeCount(),
+                request.seatCount(), request.purpose().trim(), preferences, mask);
     }
 
     private NormalizedReservation normalizeSchedulable(CreateReservationRequest request) {
         requireCommonFields(request);
-        if (request.durationMinutes() == null || request.durationMinutes() < 30
-                || request.durationMinutes() > 240 || request.durationMinutes() % 30 != 0) {
-            throw badRequest("可调度预约时长必须为30的倍数且满足30到240分钟");
+        Integer periods = request.durationPeriods();
+        if (periods == null || periods < 1 || periods > TimeSlotMask.MAX_BITS) {
+            throw badRequest("可调度预约节数必须为正整数");
         }
         LocalTime start = parseTime(request.windowStart(), false);
         LocalTime end = parseTime(request.windowEnd(), true);
-        int startMinute = alignedMinute(start, false);
-        int endMinute = alignedMinute(end, true);
-        if (endMinute <= startMinute) {
-            throw badRequest("可调度请求窗口无效");
+        PeriodSchedule schedule = request.labId() == null
+                ? periodCatalog.defaultSchedule() : scheduleFor(request.labId());
+        if (schedule.indexOfStart(start) < 0 || schedule.indexOfEnd(end) < 0
+                || !end.isAfter(start)) {
+            throw badRequest("可调度请求窗口必须落在节次的开始和结束");
         }
-        if (request.durationMinutes() > endMinute - startMinute) {
-            throw badRequest("预约时长不能超过可调度请求窗口");
+        if (periods > schedule.between(start, end).periodCount()) {
+            throw badRequest("预约节数不能超过可调度请求窗口");
         }
         validateSeatCount(request);
         ReservationPreferences preferences = preferences(request);
@@ -78,8 +84,24 @@ public class ReservationRequestValidator {
                 ? request.seatCount() : null;
         return new NormalizedReservation(
                 request.allocationMode(), request.labId(), request.date(), start, end,
-                request.durationMinutes(), request.reservationMode(), request.attendeeCount(),
+                periods * 45, periods, request.reservationMode(), request.attendeeCount(),
                 storedSeatCount, request.purpose().trim(), preferences, null);
+    }
+
+    private PeriodSchedule scheduleFor(long labId) {
+        try {
+            return periodCatalog.forLab(labId);
+        } catch (IllegalArgumentException exception) {
+            throw badRequest(exception.getMessage());
+        }
+    }
+
+    private static TimeSlotMask maskOf(PeriodSchedule schedule, LocalTime start, LocalTime end) {
+        try {
+            return schedule.between(start, end);
+        } catch (IllegalArgumentException exception) {
+            throw badRequest(exception.getMessage());
+        }
     }
 
     private static void requireCommonFields(CreateReservationRequest request) {
@@ -104,17 +126,9 @@ public class ReservationRequestValidator {
         return request.preferences() == null ? ReservationPreferences.empty() : request.preferences();
     }
 
-    private static int alignedMinute(LocalTime time, boolean end) {
-        if (time.getSecond() != 0 || time.getNano() != 0
-                || (time.getMinute() != 0 && time.getMinute() != 30)) {
-            throw badRequest("时间必须按30分钟对齐，且秒和纳秒必须为0");
-        }
-        return com.campus.lab.common.DayTimes.minuteOfDay(time, end);
-    }
-
     private static LocalTime parseTime(String value, boolean endOfDayAllowed) {
         try {
-            return com.campus.lab.common.DayTimes.parse(value, endOfDayAllowed);
+            return DayTimes.parse(value, endOfDayAllowed);
         } catch (IllegalArgumentException exception) {
             throw badRequest(exception.getMessage());
         }

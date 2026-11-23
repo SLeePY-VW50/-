@@ -13,8 +13,8 @@ export function labAvailability(labId: number, date: string) {
   return request<LabAvailability>(`/api/labs/${labId}/availability`, { query: { date } })
 }
 
-export function slotRecommendations(labId: number, date: string, durationMinutes: number, reservationMode: 'ROOM' | 'SEAT', attendeeCount: number) {
+export function slotRecommendations(labId: number, date: string, durationPeriods: number, reservationMode: 'ROOM' | 'SEAT', attendeeCount: number) {
   return request<SlotRecommendations>('/api/reservations/recommendations', {
-    query: { labId, date, durationMinutes, reservationMode, attendeeCount },
+    query: { labId, date, durationPeriods, reservationMode, attendeeCount },
   })
 }

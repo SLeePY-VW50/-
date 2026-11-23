@@ -21,8 +21,8 @@ Page({
     closeTime: '24:00',
     selection: null as SlotRange | null,
     selectedText: '',
-    durationMinutes: 60,
-    durationOptions: [30, 60, 90, 120, 150, 180, 210, 240],
+    durationPeriods: 2,
+    durationOptions: [1, 2, 3, 4, 5],
     durationIndex: 1,
     attendeeCount: 1,
     recommendations: [] as SlotRecommendation[],
@@ -138,7 +138,7 @@ Page({
     const durationIndex = Number(event.detail.value)
     this.setData({
       durationIndex,
-      durationMinutes: this.data.durationOptions[durationIndex],
+      durationPeriods: this.data.durationOptions[durationIndex],
       recommendations: [],
       recommendationNote: '',
     })
@@ -159,7 +159,7 @@ Page({
       const data = await slotRecommendations(
         this.data.labId,
         this.data.date,
-        this.data.durationMinutes,
+        this.data.durationPeriods,
         this.data.mode,
         attendees,
       )

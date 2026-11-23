@@ -129,7 +129,7 @@ public abstract class AbstractReservationNonTransactionalTest {
         for (int day = 1; day <= 7; day++) {
             jdbcTemplate.update("""
                     INSERT INTO t_time_rule (lab_id, day_of_week, open_time, close_time)
-                    VALUES (?, ?, '08:00:00', '22:00:00')
+                    VALUES (?, ?, '08:30:00', '17:30:00')
                     """, labId, day);
         }
         return labId;

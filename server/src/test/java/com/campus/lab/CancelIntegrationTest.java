@@ -91,8 +91,8 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
         long labId = createLaboratory(6);
         Fixture owner = fixture("STUDENT");
         Fixture other = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 2);
-        long disjointId = createFixed(owner.token(), labId, "SEAT", "10:00", "11:00", 2);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 2);
+        long disjointId = createFixed(owner.token(), labId, "SEAT", "10:05", "11:45", 2);
         List<Long> seatIds = assignedSeatIds(reservationId);
         assertThat(seatIds).hasSize(2);
         assertThat(assignedSeatIds(disjointId)).containsExactlyElementsOf(seatIds);
@@ -102,15 +102,15 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
                 .andExpect(jsonPath("$.data.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.data.seats.length()").value(2));
 
-        long disjointMask = mask("10:00", "11:00");
+        long disjointMask = mask("10:05", "11:45");
         assertThat(seatMasks(seatIds)).allSatisfy((seatId, value) -> assertThat(value).isEqualTo(disjointMask));
         assertThat(count("t_reservation_seat", reservationId)).isEqualTo(2);
         assertThat(cancelLogCount(reservationId)).isEqualTo(1);
 
-        long rebooked = createFixed(other.token(), labId, "SEAT", "09:00", "10:00", 2);
+        long rebooked = createFixed(other.token(), labId, "SEAT", "09:15", "10:00", 2);
         assertThat(rebooked).isPositive();
         assertThat(statusOf(rebooked)).isEqualTo("APPROVED");
-        long combinedMask = mask("09:00", "10:00") | disjointMask;
+        long combinedMask = mask("09:15", "10:00") | disjointMask;
         assertThat(seatMasks(seatIds)).allSatisfy((seatId, value) -> assertThat(value).isEqualTo(combinedMask));
     }
 
@@ -119,15 +119,15 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
         long labId = createLaboratory(4);
         Fixture owner = fixture("TEACHER");
         Fixture other = fixture("TEACHER");
-        long reservationId = createFixed(owner.token(), labId, "ROOM", "09:00", "10:00", 4);
-        createFixed(owner.token(), labId, "ROOM", "10:00", "11:00", 4);
+        long reservationId = createFixed(owner.token(), labId, "ROOM", "09:15", "10:00", 4);
+        createFixed(owner.token(), labId, "ROOM", "10:05", "11:45", 4);
         int assignmentCount = count("t_reservation_seat", reservationId);
         assertThat(assignmentCount).isEqualTo(4);
 
         cancel(owner.token(), reservationId, Map.of("reason", "提前取消ROOM"))
                 .andExpect(status().isOk());
 
-        assertThat(roomMask(labId, FUTURE_DATE)).isEqualTo(mask("10:00", "11:00"));
+        assertThat(roomMask(labId, FUTURE_DATE)).isEqualTo(mask("10:05", "11:45"));
         assertThat(count("t_reservation_seat", reservationId)).isEqualTo(assignmentCount);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_seat_bitmap b
@@ -135,17 +135,17 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
                 WHERE s.lab_id = ? AND b.bitmap_date = ? AND b.mask <> 0
                 """, Integer.class, labId, FUTURE_DATE)).isZero();
 
-        long rebooked = createFixed(other.token(), labId, "ROOM", "09:00", "10:00", 4);
+        long rebooked = createFixed(other.token(), labId, "ROOM", "09:15", "10:00", 4);
         assertThat(statusOf(rebooked)).isEqualTo("APPROVED");
         assertThat(roomMask(labId, FUTURE_DATE))
-                .isEqualTo(mask("09:00", "10:00") | mask("10:00", "11:00"));
+                .isEqualTo(mask("09:15", "10:00") | mask("10:05", "11:45"));
     }
 
     @Test
     void lateApprovedCancellationWritesViolationAndActualCreditLedger() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         moveFixedReservationToToday(reservationId, labId);
 
         cancel(owner.token(), reservationId, Map.of("reason", "临时有事"))
@@ -194,7 +194,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void cancellationExactlyTwoHoursBeforeStartIsFree() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "10:00", "11:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "10:05", "11:45", 1);
         moveFixedReservationToToday(reservationId, labId);
 
         cancel(owner.token(), reservationId, null).andExpect(status().isOk());
@@ -210,7 +210,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
         Fixture other = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
 
         cancel(other.token(), reservationId, null).andExpect(status().isNotFound());
         for (String account : new String[] {"L1001", "A1001"}) {
@@ -226,12 +226,13 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void startedReservationIsRejectedWithoutReleasingOccupancy() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         moveFixedReservationToToday(reservationId, labId);
         jdbcTemplate.update("""
                 UPDATE t_reservation
                 SET request_window_start = '08:00:00', request_window_end = '09:00:00',
-                    start_time = '2026-10-24 08:00:00', end_time = '2026-10-24 09:00:00'
+                    start_time = '2026-10-24 08:00:00', end_time = '2026-10-24 09:00:00',
+                    requested_duration_minutes = 60
                 WHERE resv_id = ?
                 """, reservationId);
         Map<Long, Long> before = allSeatMasks(labId, TODAY);
@@ -247,7 +248,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void illegalStatesAreRejected() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
 
         for (String illegalState : new String[] {"IN_USE", "COMPLETED", "NO_SHOW", "EXPIRED"}) {
             jdbcTemplate.update("UPDATE t_reservation SET status = ? WHERE resv_id = ?", illegalState, reservationId);
@@ -261,7 +262,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void missingReleaseBitsRollBackEarlierSeatReleaseAndEveryOtherChange() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 2);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 2);
         moveFixedReservationToToday(reservationId, labId);
         List<Long> seatIds = assignedSeatIds(reservationId);
         Map<Long, Long> before = seatMasks(seatIds);
@@ -283,7 +284,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void creditInsertFailureRollsBackStatusBitmapViolationAndLog() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         moveFixedReservationToToday(reservationId, labId);
         long seatId = assignedSeatIds(reservationId).getFirst();
         long maskBefore = seatMask(seatId);
@@ -310,7 +311,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void cancelLockIsReleasedOnlyAfterTransactionCommit() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         doAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             assertThat(statusOf(reservationId)).isEqualTo("CANCELLED");
@@ -326,7 +327,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void lockKeyChangeRetriesWithCorrectLabDateAndReleasesOnlyOnce() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         long seatId = assignedSeatIds(reservationId).getFirst();
         Mockito.clearInvocations(lockManager, reservationRepository, releaseService);
         AtomicInteger targetReads = new AtomicInteger();
@@ -364,7 +365,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     void lockKeyStillChangingAfterRetryReturnsConflictWithoutRelease() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         long seatId = assignedSeatIds(reservationId).getFirst();
         Mockito.clearInvocations(lockManager, reservationRepository, releaseService);
         doAnswer(invocation -> new ReservationRepository.CancellationTarget(null, FUTURE_DATE))
@@ -378,14 +379,14 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
                 .release(any(ReservationRepository.CancellationReservation.class));
         assertThat(statusOf(reservationId)).isEqualTo("APPROVED");
         assertThat(cancelLogCount(reservationId)).isZero();
-        assertThat(seatMask(seatId)).isEqualTo(mask("09:00", "10:00"));
+        assertThat(seatMask(seatId)).isEqualTo(mask("09:15", "10:00"));
     }
 
     @Test
     void concurrentRepeatedLateCancellationReleasesAndPenalizesOnlyOnce() throws Exception {
         long labId = createLaboratory(4);
         Fixture owner = fixture("STUDENT");
-        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:00", "10:00", 1);
+        long reservationId = createFixed(owner.token(), labId, "SEAT", "09:15", "10:00", 1);
         moveFixedReservationToToday(reservationId, labId);
         long seatId = assignedSeatIds(reservationId).getFirst();
         Mockito.clearInvocations(lockManager, reservationRepository, releaseService);
@@ -481,9 +482,9 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
         Map<String, Object> request = new HashMap<>();
         request.put("allocationMode", "SCHEDULABLE");
         request.put("date", FUTURE_DATE.toString());
-        request.put("windowStart", "08:00");
-        request.put("windowEnd", "12:00");
-        request.put("durationMinutes", 60);
+        request.put("windowStart", "08:30");
+        request.put("windowEnd", "12:30");
+        request.put("durationPeriods", 2);
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 1);
         request.put("seatCount", 1);
@@ -622,7 +623,7 @@ class CancelIntegrationTest extends AbstractReservationNonTransactionalTest {
     }
 
     private static long mask(String start, String end) {
-        return TimeSlotMask.between(LocalTime.parse(start), LocalTime.parse(end)).value();
+        return com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.parse(start), LocalTime.parse(end)).value();
     }
 
     private record Fixture(long userId, String token) {

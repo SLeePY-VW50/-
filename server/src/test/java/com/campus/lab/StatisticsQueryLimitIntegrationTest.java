@@ -65,8 +65,8 @@ class StatisticsQueryLimitIntegrationTest extends AbstractIntegrationTest {
                         (user_id, allocation_mode, reservation_mode, request_date,
                          request_window_start, request_window_end, requested_duration_minutes,
                          lab_id, start_time, end_time, attendee_count, seat_count, purpose, status)
-                    VALUES (?, 'FIXED', 'SEAT', ?, '08:00:00', '09:00:00', 60,
-                            ?, '2026-10-23 08:00:00', '2026-10-23 09:00:00', 1, 1, '上限测试', 'APPROVED')
+                    VALUES (?, 'FIXED', 'SEAT', ?, '08:30:00', '09:15:00', 45,
+                            ?, '2026-10-23 08:30:00', '2026-10-23 09:15:00', 1, 1, '上限测试', 'APPROVED')
                     """, userId, date, labId);
             long reservationId = jdbcTemplate.queryForObject(
                     "SELECT MAX(resv_id) FROM t_reservation WHERE user_id = ?", Long.class, userId);
@@ -74,7 +74,7 @@ class StatisticsQueryLimitIntegrationTest extends AbstractIntegrationTest {
                     INSERT INTO t_reservation_seat
                         (resv_id, seat_id, time_mask, assignment_method)
                     VALUES (?, ?, ?, 'FIXED')
-                    """, reservationId, seatIds.get(index), 1L << 16);
+                    """, reservationId, seatIds.get(index), 1L << 0);
         }
         return labId;
     }

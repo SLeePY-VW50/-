@@ -34,21 +34,21 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
         long userId = userIdByAccount(account);
         int before = reservationCount(userId);
 
-        JsonNode body = recommend(loginAndGetToken(account, "Lab@2026"), labId, DATE.toString(), 60, "SEAT", 1);
+        JsonNode body = recommend(loginAndGetToken(account, "Lab@2026"), labId, DATE.toString(), 2, "SEAT", 1);
         assertThat(body.path("data").path("outcome").asText()).isEqualTo("AVAILABLE");
         JsonNode items = body.path("data").path("recommendations");
         assertThat(items.size()).isGreaterThanOrEqualTo(3);
-        assertThat(items.get(0).path("startTime").asText()).isEqualTo("08:00");
-        assertThat(items.get(0).path("endTime").asText()).isEqualTo("09:00");
-        assertThat(items.get(0).path("startSlot").asInt()).isEqualTo(16);
-        assertThat(items.get(0).path("endSlot").asInt()).isEqualTo(18);
-        assertThat(items.get(1).path("startTime").asText()).isEqualTo("08:30");
-        assertThat(items.get(1).path("endTime").asText()).isEqualTo("09:30");
+        assertThat(items.get(0).path("startTime").asText()).isEqualTo("08:30");
+        assertThat(items.get(0).path("endTime").asText()).isEqualTo("10:00");
+        assertThat(items.get(0).path("startSlot").asInt()).isEqualTo(0);
+        assertThat(items.get(0).path("endSlot").asInt()).isEqualTo(2);
+        assertThat(items.get(1).path("startTime").asText()).isEqualTo("09:15");
+        assertThat(items.get(1).path("endTime").asText()).isEqualTo("10:50");
         assertThat(items).allSatisfy(item -> {
-            assertThat(item.path("durationMinutes").asInt()).isEqualTo(60);
+            assertThat(item.path("durationPeriods").asInt()).isEqualTo(2);
             assertThat(item.path("endSlot").asInt() - item.path("startSlot").asInt()).isEqualTo(2);
-            assertThat(item.path("startTime").asText().compareTo("08:00")).isNotNegative();
-            assertThat(item.path("endTime").asText().compareTo("22:00")).isNotPositive();
+            assertThat(item.path("startTime").asText().compareTo("08:30")).isNotNegative();
+            assertThat(item.path("endTime").asText().compareTo("17:30")).isNotPositive();
         });
         assertThat(reservationCount(userId)).isEqualTo(before);
     }
@@ -56,18 +56,18 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void overlapOnTheRoomBitmapRemovesCoveredSeatIntervals() throws Exception {
         long labId = labId("LAB-A");
-        occupyRoom(labId, TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value());
+        occupyRoom(labId, com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value());
 
         List<String> slots = times(recommend(
-                loginAndGetToken("20240001", "Lab@2026"), labId, DATE.toString(), 60, "SEAT", 1));
-        assertThat(slots).contains("08:00-09:00", "10:00-11:00");
-        assertThat(slots).doesNotContain("08:30-09:30", "09:00-10:00", "09:30-10:30");
+                loginAndGetToken("20240001", "Lab@2026"), labId, DATE.toString(), 2, "SEAT", 1));
+        assertThat(slots).contains("10:05-11:45");
+        assertThat(slots).doesNotContain("08:30-10:00", "09:15-10:50");
     }
 
     @Test
     void seatOccupancyExcludesWholeRoomIntervalsWhileRoomMaskStaysEmpty() throws Exception {
         long labId = labId("LAB-A");
-        long occupied = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long occupied = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         Long seatId = jdbcTemplate.queryForObject("""
                 SELECT seat_id FROM t_lab_seat
                 WHERE lab_id = ? AND seat_status = 'ACTIVE'
@@ -79,15 +79,15 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
                 ON DUPLICATE KEY UPDATE mask = ?
                 """, seatId, DATE, occupied, occupied);
 
-        JsonNode body = recommend(loginAndGetToken("20240001", "Lab@2026"), labId, DATE.toString(), 60, "ROOM", 1);
+        JsonNode body = recommend(loginAndGetToken("20240001", "Lab@2026"), labId, DATE.toString(), 2, "ROOM", 1);
         assertThat(body.path("data").path("outcome").asText()).isEqualTo("AVAILABLE");
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_slot_bitmap
                 WHERE lab_id = ? AND bitmap_date = ? AND mask <> 0
                 """, Integer.class, labId, DATE)).isZero();
         List<String> slots = times(body);
-        assertThat(slots).contains("08:00-09:00", "10:00-11:00");
-        assertThat(slots).doesNotContain("08:30-09:30", "09:00-10:00", "09:30-10:30");
+        assertThat(slots).contains("10:05-11:45");
+        assertThat(slots).doesNotContain("08:30-10:00", "09:15-10:50");
     }
 
     @Test
@@ -98,17 +98,17 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("UPDATE sys_user SET credit_score = 59 WHERE user_id = ?", userId);
         String token = loginAndGetToken(account, "Lab@2026");
 
-        JsonNode credit = recommend(token, labId, DATE.toString(), 60, "SEAT", 1);
+        JsonNode credit = recommend(token, labId, DATE.toString(), 2, "SEAT", 1);
         assertThat(credit.path("data").path("outcome").asText()).isEqualTo("CREDIT_BLOCKED");
         assertThat(credit.path("data").path("recommendations")).isEmpty();
 
         jdbcTemplate.update("UPDATE sys_user SET credit_score = 100 WHERE user_id = ?", userId);
-        JsonNode advance = recommend(token, labId, "2026-12-01", 60, "SEAT", 1);
+        JsonNode advance = recommend(token, labId, "2026-12-01", 2, "SEAT", 1);
         assertThat(advance.path("data").path("outcome").asText()).isEqualTo("RULE_BLOCKED");
         assertThat(advance.path("data").path("recommendations")).isEmpty();
 
         jdbcTemplate.update("UPDATE t_lab SET status = 'MAINTENANCE' WHERE lab_id = ?", labId);
-        JsonNode closed = recommend(token, labId, DATE.toString(), 60, "ROOM", 1);
+        JsonNode closed = recommend(token, labId, DATE.toString(), 2, "ROOM", 1);
         assertThat(closed.path("data").path("outcome").asText()).isEqualTo("RULE_BLOCKED");
         assertThat(closed.path("data").path("recommendations")).isEmpty();
     }
@@ -127,10 +127,10 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
         assertThat(tooLong.path("data").path("recommendations")).isEmpty();
 
         jdbcTemplate.update("""
-                UPDATE t_time_rule SET close_time = '08:30:00'
+                UPDATE t_time_rule SET close_time = '09:15:00', open_end_period = 1
                 WHERE lab_id = ? AND day_of_week = 1
                 """, labId);
-        JsonNode window = recommend(token, labId, DATE.toString(), 60, "SEAT", 1);
+        JsonNode window = recommend(token, labId, DATE.toString(), 2, "SEAT", 1);
         assertThat(window.path("data").path("outcome").asText()).isEqualTo("DURATION_UNFIT");
         assertThat(window.path("data").path("recommendations")).isEmpty();
     }
@@ -138,9 +138,9 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void nothingFreeReturnsAnEmptyRecommendationList() throws Exception {
         long labId = labId("LAB-A");
-        occupyRoom(labId, (1L << TimeSlotMask.SLOTS_PER_DAY) - 1L);
+        occupyRoom(labId, (1L << com.campus.lab.period.DongfangPeriodTable.schedule().slotCount()) - 1L);
 
-        JsonNode body = recommend(loginAndGetToken("20240001", "Lab@2026"), labId, DATE.toString(), 60, "SEAT", 2);
+        JsonNode body = recommend(loginAndGetToken("20240001", "Lab@2026"), labId, DATE.toString(), 2, "SEAT", 2);
         assertThat(body.path("data").path("outcome").asText()).isEqualTo("NONE_FREE");
         assertThat(body.path("data").path("recommendations")).isEmpty();
     }
@@ -151,9 +151,9 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
         Map<String, Object> request = new HashMap<>();
         request.put("allocationMode", "SCHEDULABLE");
         request.put("date", DATE.toString());
-        request.put("windowStart", "08:00");
-        request.put("windowEnd", "12:00");
-        request.put("durationMinutes", 90);
+        request.put("windowStart", "08:30");
+        request.put("windowEnd", "12:30");
+        request.put("durationPeriods", 3);
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 3);
         request.put("seatCount", 3);
@@ -174,9 +174,9 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
                 .filter(item -> item.resvId() == reservationId)
                 .findFirst()
                 .orElseThrow();
-        assertThat(demand.windowStart()).isEqualTo(8 * 60);
-        assertThat(demand.windowEnd()).isEqualTo(12 * 60);
-        assertThat(demand.durationMinutes()).isEqualTo(90);
+        assertThat(demand.windowStart()).isEqualTo(8 * 60 + 30);
+        assertThat(demand.windowEnd()).isEqualTo(12 * 60 + 30);
+        assertThat(demand.durationPeriods()).isEqualTo(3);
         assertThat(demand.attendeeCount()).isEqualTo(3);
         assertThat(demand.seatCount()).isEqualTo(3);
     }
@@ -187,7 +187,7 @@ class IntelligentReservationIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .param("labId", Long.toString(labId))
                         .param("date", date)
-                        .param("durationMinutes", Integer.toString(duration))
+                        .param("durationPeriods", Integer.toString(duration))
                         .param("reservationMode", mode)
                         .param("attendeeCount", Integer.toString(attendees)))
                 .andExpect(status().isOk())

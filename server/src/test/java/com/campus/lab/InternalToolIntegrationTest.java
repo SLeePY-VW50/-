@@ -65,8 +65,8 @@ class InternalToolIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.mode").value("SEAT"))
                 .andExpect(jsonPath("$.data.dataTime").isNotEmpty())
-                .andExpect(jsonPath("$.data.slots.length()").value(48))
-                .andExpect(jsonPath("$.data.slots[47].end").value("24:00"))
+                .andExpect(jsonPath("$.data.slots.length()").value(13))
+                .andExpect(jsonPath("$.data.slots[12].end").value("20:50"))
                 .andReturn();
         assertNoPrivateFields(result.getResponse().getContentAsString());
     }
@@ -129,7 +129,7 @@ class InternalToolIntegrationTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "allocationMode", "FIXED", "labId", labId, "date", DATE.toString(),
-                                "startTime", "09:00", "endTime", "10:00", "reservationMode", "SEAT",
+                                "startTime", "09:15", "endTime", "10:00", "reservationMode", "SEAT",
                                 "attendeeCount", 1, "seatCount", 1, "purpose", purpose,
                                 "preferences", Map.of()))))
                 .andExpect(status().isOk())

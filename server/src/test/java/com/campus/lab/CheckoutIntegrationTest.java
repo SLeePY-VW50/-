@@ -38,12 +38,12 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         Fixture other = fixture("STUDENT");
         long reservationId = createReservation(
                 owner.userId(), labId, "SEAT", "IN_USE",
-                LocalDateTime.of(2026, 10, 24, 9, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         createReservation(
                 other.userId(), labId, "SEAT", "APPROVED",
-                LocalDateTime.of(2026, 10, 24, 12, 0),
-                LocalDateTime.of(2026, 10, 24, 13, 0), true);
+                LocalDateTime.of(2026, 10, 24, 13, 30),
+                LocalDateTime.of(2026, 10, 24, 14, 15), true);
         long seatId = assignedSeatId(reservationId);
 
         MvcResult first = checkout(owner.token(), reservationId).andReturn();
@@ -53,7 +53,7 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         assertThat(responseJson(first).path("data").path("checkoutChannel").asText())
                 .isEqualTo("WEB_ACCOUNT");
         assertThat(responseJson(first).path("data").path("checkoutTime").asText()).isNotBlank();
-        long expectedMask = mask("09:00", "10:30") | mask("12:00", "13:00");
+        long expectedMask = mask("09:15", "10:50") | mask("13:30", "14:15");
         assertThat(seatMask(seatId)).isEqualTo(expectedMask);
         assertThat(checkoutLogCount(reservationId)).isEqualTo(1);
         LocalDateTime checkoutTime = checkoutTime(reservationId);
@@ -74,13 +74,13 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         Fixture owner = fixture("STUDENT");
         long reservationId = createReservation(
                 owner.userId(), labId, "SEAT", "IN_USE",
-                LocalDateTime.of(2026, 10, 24, 9, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         long seatId = assignedSeatId(reservationId);
 
         checkout(owner.token(), reservationId).andReturn();
 
-        assertThat(seatMask(seatId)).isEqualTo(mask("09:00", "11:00"));
+        assertThat(seatMask(seatId)).isEqualTo(mask("09:15", "10:50"));
         assertThat(checkoutTime(reservationId)).isEqualTo(LocalDateTime.of(2026, 10, 24, 10, 30));
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT checkout_channel FROM t_reservation WHERE resv_id = ?",
@@ -95,17 +95,17 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         Fixture other = fixture("TEACHER");
         long reservationId = createReservation(
                 owner.userId(), labId, "ROOM", "IN_USE",
-                LocalDateTime.of(2026, 10, 24, 9, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         createReservation(
                 other.userId(), labId, "ROOM", "APPROVED",
-                LocalDateTime.of(2026, 10, 24, 12, 0),
-                LocalDateTime.of(2026, 10, 24, 13, 0), true);
+                LocalDateTime.of(2026, 10, 24, 13, 30),
+                LocalDateTime.of(2026, 10, 24, 14, 15), true);
 
         MvcResult result = checkout(owner.token(), reservationId).andReturn();
 
         assertThat(result.getResponse().getStatus()).isEqualTo(200);
-        assertThat(roomMask(labId)).isEqualTo(mask("09:00", "10:30") | mask("12:00", "13:00"));
+        assertThat(roomMask(labId)).isEqualTo(mask("09:15", "10:50") | mask("13:30", "14:15"));
         assertThat(checkoutLogCount(reservationId)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_reservation_seat WHERE resv_id = ?", Integer.class, reservationId))
@@ -120,7 +120,7 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         long reservationId = createReservation(
                 owner.userId(), labId, "SEAT", "IN_USE",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15), true);
 
         assertThat(checkout(other.token(), reservationId).andReturn().getResponse().getStatus())
                 .isEqualTo(404);
@@ -145,8 +145,8 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         Fixture owner = fixture("STUDENT");
         long reservationId = createReservation(
                 owner.userId(), labId, "SEAT", "IN_USE",
-                LocalDateTime.of(2026, 10, 24, 9, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         long firstSeat = assignedSeatId(reservationId);
         long secondSeat = jdbcTemplate.queryForObject("""
                 SELECT seat_id FROM t_lab_seat
@@ -192,8 +192,8 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         long labId = createLaboratory(2);
         Fixture owner = fixture("STUDENT");
         long reservationId = createReservation(owner.userId(), labId, "SEAT", "IN_USE",
-                LocalDateTime.of(2026, 10, 24, 9, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         mockMvc.perform(post("/api/checkin/{id}/checkout", reservationId)
                         .header("Authorization", "Bearer " + owner.token())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -208,8 +208,8 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
         long labId = createLaboratory(2);
         Fixture owner = fixture("STUDENT");
         long reservationId = createReservation(owner.userId(), labId, "SEAT", "IN_USE",
-                LocalDateTime.of(2026, 10, 24, 9, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 9, 15),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         mockMvc.perform(post("/api/checkin/{id}/checkout", reservationId)
                         .header("Authorization", "Bearer " + owner.token())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -291,7 +291,7 @@ class CheckoutIntegrationTest extends AbstractCheckinNonTransactionalTest {
     }
 
     private static long mask(String start, String end) {
-        return TimeSlotMask.between(LocalTime.parse(start), LocalTime.parse(end)).value();
+        return com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.parse(start), LocalTime.parse(end)).value();
     }
 
     private record Fixture(String account, long userId, String token) {

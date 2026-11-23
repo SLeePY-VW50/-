@@ -23,7 +23,7 @@ class ScheduleSeatingServiceTest {
     void usesExistingAllocatorToReturnActualKSeatsAndSoftMismatchFlags() {
         ScheduleDemand demand = ScheduleTestFixtures.withCapacityNeeds(
                 ScheduleTestFixtures.withPreferences(demand(1), "A", true), 2, 2);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 40), 0, List.of(
+        ScheduleLabResource resource = lab(1, 20, mask(0, 10), 0, List.of(
                 seat(3, 3, "STANDARD", "B", false, 0),
                 seat(1, 1, "STANDARD", "A", true, 0),
                 seat(2, 2, "STANDARD", "A", true, 0)));
@@ -45,8 +45,8 @@ class ScheduleSeatingServiceTest {
 
     @Test
     void roomAllocationContainsEveryActiveSeatButNoInactiveSeat() {
-        ScheduleDemand demand = demand(1, 1, CREATED_AT, ReservationMode.ROOM, 60);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 40), 0, List.of(
+        ScheduleDemand demand = demand(1, 1, CREATED_AT, ReservationMode.ROOM, 2);
+        ScheduleLabResource resource = lab(1, 20, mask(0, 10), 0, List.of(
                 seat(1, 1, "STANDARD", "A", true, 0),
                 seat(2, 2, "STANDARD", "A", false, ResourceStatus.DISABLED, 0),
                 seat(3, 3, "STANDARD", "B", false, 0)));
@@ -61,14 +61,14 @@ class ScheduleSeatingServiceTest {
 
     @Test
     void hardConflictInSecondStageDropsTheWholeConflictingAssignment() {
-        ScheduleDemand first = demand(1, 1, CREATED_AT, ReservationMode.SEAT, 60);
-        ScheduleDemand second = demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 60);
-        ScheduleLabResource oneSeat = lab(1, 20, mask(16, 40), 0,
+        ScheduleDemand first = demand(1, 1, CREATED_AT, ReservationMode.SEAT, 2);
+        ScheduleDemand second = demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 2);
+        ScheduleLabResource oneSeat = lab(1, 20, mask(0, 10), 0,
                 List.of(seat(11, 1, "STANDARD", "A", true, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(first, second), List.of(oneSeat));
         SchedulePlan conflictingPlan = new SchedulePlan(AlgorithmType.FCFS,
-                List.of(new ScheduleAssignment(1, 1, 16, 18),
-                        new ScheduleAssignment(2, 1, 16, 18)), Map.of());
+                List.of(new ScheduleAssignment(1, 1, 0, 2),
+                        new ScheduleAssignment(2, 1, 0, 2)), Map.of());
 
         ScheduleSeatingPlan seated = service.allocate(problem, conflictingPlan);
 
@@ -80,12 +80,12 @@ class ScheduleSeatingServiceTest {
 
     @Test
     void sameUserConflictIsRejectedAcrossLabsDuringSecondStage() {
-        ScheduleDemand first = demand(1, 7, CREATED_AT, ReservationMode.SEAT, 60);
-        ScheduleDemand second = demand(2, 7, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 60);
+        ScheduleDemand first = demand(1, 7, CREATED_AT, ReservationMode.SEAT, 2);
+        ScheduleDemand second = demand(2, 7, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 2);
         ScheduleProblem problem = new ScheduleProblem(List.of(first, second), List.of(lab(1), lab(2)));
         SchedulePlan conflictingPlan = new SchedulePlan(AlgorithmType.FCFS,
-                List.of(new ScheduleAssignment(1, 1, 16, 18),
-                        new ScheduleAssignment(2, 2, 16, 18)), Map.of());
+                List.of(new ScheduleAssignment(1, 1, 0, 2),
+                        new ScheduleAssignment(2, 2, 0, 2)), Map.of());
 
         ScheduleSeatingPlan seated = service.allocate(problem, conflictingPlan);
 
@@ -95,7 +95,7 @@ class ScheduleSeatingServiceTest {
 
     @Test
     void firstStageUnresolvedReasonsArePreserved() {
-        ScheduleDemand outside = ScheduleTestFixtures.withWindow(demand(1), 0, 60, 60);
+        ScheduleDemand outside = ScheduleTestFixtures.withWindow(demand(1), 0, 60, 1);
         ScheduleProblem problem = new ScheduleProblem(List.of(outside), List.of(lab(1)));
         SchedulePlan firstStage = new FcfsEngine().schedule(problem, parameters);
 
@@ -108,16 +108,16 @@ class ScheduleSeatingServiceTest {
     @Test
     void higherHardSpecIsSeatedBeforeLowerSpecRegardlessOfFirstStageOrder() {
         ScheduleDemand standard = ScheduleTestFixtures.withSpec(
-                demand(1, 1, CREATED_AT, ReservationMode.SEAT, 60), "STANDARD");
+                demand(1, 1, CREATED_AT, ReservationMode.SEAT, 2), "STANDARD");
         ScheduleDemand gpu = ScheduleTestFixtures.withSpec(
-                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 60), "GPU");
-        ScheduleLabResource resource = lab(1, 20, mask(16, 18), 0, List.of(
+                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 2), "GPU");
+        ScheduleLabResource resource = lab(1, 20, mask(0, 2), 0, List.of(
                 seat(1, 1, "GPU", "A", true, 0),
                 seat(2, 2, "STANDARD", "A", true, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(standard, gpu), List.of(resource));
         SchedulePlan firstStage = new SchedulePlan(AlgorithmType.FCFS,
-                List.of(new ScheduleAssignment(1, 1, 16, 18),
-                        new ScheduleAssignment(2, 1, 16, 18)), Map.of());
+                List.of(new ScheduleAssignment(1, 1, 0, 2),
+                        new ScheduleAssignment(2, 1, 0, 2)), Map.of());
 
         ScheduleSeatingPlan seated = service.allocate(problem, firstStage);
 
@@ -134,7 +134,7 @@ class ScheduleSeatingServiceTest {
         ScheduleDemand demand = demand(1);
         ScheduleProblem problem = new ScheduleProblem(List.of(demand), List.of(lab(1)));
         SchedulePlan invalidPlan = new SchedulePlan(AlgorithmType.FCFS,
-                List.of(new ScheduleAssignment(1, 1, 0, 2)), Map.of());
+                List.of(new ScheduleAssignment(1, 1, 10, 12)), Map.of());
 
         ScheduleSeatingPlan seated = service.allocate(problem, invalidPlan);
 

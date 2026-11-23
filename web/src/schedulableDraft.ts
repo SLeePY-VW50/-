@@ -12,8 +12,8 @@ export function buildConfirmedSchedulablePayload(
   if (!trimmed) throw new Error('请填写使用用途')
   if (trimmed.length > 500) throw new Error('用途不能超过500字')
   if (!Number.isInteger(draft.attendeeCount) || draft.attendeeCount < 1) throw new Error('人数必须为有限正整数')
-  if (draft.durationMinutes < 30 || draft.durationMinutes > 240 || draft.durationMinutes % 30 !== 0) {
-    throw new Error('可调度时长必须为30到240分钟之间的30分钟倍数')
+  if (!Number.isInteger(draft.durationPeriods) || draft.durationPeriods < 1 || draft.durationPeriods > 5) {
+    throw new Error('可调度节数必须为1到5节')
   }
   const windowStart = timeOnly(draft.windowStart)
   const windowEnd = timeOnly(draft.windowEnd, true)
@@ -26,7 +26,7 @@ export function buildConfirmedSchedulablePayload(
     endTime: null,
     windowStart,
     windowEnd,
-    durationMinutes: draft.durationMinutes,
+    durationPeriods: draft.durationPeriods,
     reservationMode: draft.reservationMode,
     attendeeCount: draft.attendeeCount,
     seatCount: draft.reservationMode === 'SEAT' ? draft.attendeeCount : null,

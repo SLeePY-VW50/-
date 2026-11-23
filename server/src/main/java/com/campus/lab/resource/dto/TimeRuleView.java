@@ -9,8 +9,10 @@ public record TimeRuleView(
         int dayOfWeek,
         String openTime,
         String closeTime,
-        int minDurationMinutes,
-        int maxDurationMinutes,
+        int openStartPeriod,
+        int openEndPeriod,
+        int minPeriods,
+        int maxPeriods,
         int advanceMinDays,
         int advanceMaxDays) {
 
@@ -18,7 +20,8 @@ public record TimeRuleView(
         return new TimeRuleView(
                 rule.ruleId(), rule.labId(), rule.dayOfWeek(),
                 DayTimes.format(rule.openTime(), false), DayTimes.format(rule.closeTime(), true),
-                rule.minDurationMinutes(), rule.maxDurationMinutes(),
+                rule.openStartPeriod(), rule.openEndPeriod(),
+                rule.minPeriods(), rule.maxPeriods(),
                 rule.advanceMinDays(), rule.advanceMaxDays());
     }
 }

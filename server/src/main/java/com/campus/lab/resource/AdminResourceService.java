@@ -2,6 +2,9 @@ package com.campus.lab.resource;
 
 import com.campus.lab.common.BusinessException;
 import com.campus.lab.common.DayTimes;
+import com.campus.lab.period.ClassPeriod;
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.resource.dto.CreateLabRequest;
 import com.campus.lab.resource.dto.CreateTerminalRequest;
@@ -27,14 +30,17 @@ public class AdminResourceService {
     private final JdbcTemplate jdbcTemplate;
     private final RuleValidator ruleValidator;
     private final PasswordEncoder passwordEncoder;
+    private final PeriodCatalog periodCatalog;
 
     public AdminResourceService(
             JdbcTemplate jdbcTemplate,
             RuleValidator ruleValidator,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            PeriodCatalog periodCatalog) {
         this.jdbcTemplate = jdbcTemplate;
         this.ruleValidator = ruleValidator;
         this.passwordEncoder = passwordEncoder;
+        this.periodCatalog = periodCatalog;
     }
 
     @Transactional
@@ -69,20 +75,19 @@ public class AdminResourceService {
     public com.campus.lab.resource.dto.TimeRuleView updateRule(
             long labId, long ruleId, UpdateTimeRuleRequest request) {
         TimeRule existing = requireRule(labId, ruleId);
-        java.time.LocalTime openTime;
-        java.time.LocalTime closeTime;
-        try {
-            openTime = DayTimes.parse(request.openTime(), false);
-            closeTime = DayTimes.parse(request.closeTime(), true);
-            if (DayTimes.minuteOfDay(closeTime, true) <= DayTimes.minuteOfDay(openTime, false)) {
-                throw new IllegalArgumentException("关闭时间必须晚于开放时间");
-            }
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        PeriodSchedule schedule = periodCatalog.forLab(labId);
+        if (request.openEndPeriod() > schedule.slotCount()
+                || request.openEndPeriod() < request.openStartPeriod()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "开放节次范围无效");
         }
+        ClassPeriod first = schedule.periodAt(request.openStartPeriod() - 1);
+        ClassPeriod last = schedule.periodAt(request.openEndPeriod() - 1);
+        java.time.LocalTime openTime = first.start();
+        java.time.LocalTime closeTime = last.end();
         TimeRule candidate = new TimeRule(
                 existing.ruleId(), existing.labId(), existing.dayOfWeek(), openTime, closeTime,
-                request.minDurationMinutes(), request.maxDurationMinutes(),
+                request.openStartPeriod(), request.openEndPeriod(),
+                request.minPeriods(), request.maxPeriods(),
                 request.advanceMinDays(), request.advanceMaxDays());
         ReservationRuleConfig global;
         EffectiveTimeRule effective;
@@ -97,11 +102,12 @@ public class AdminResourceService {
         }
         jdbcTemplate.update("""
                 UPDATE t_time_rule
-                SET open_time = ?, close_time = ?, min_duration_minutes = ?,
-                    max_duration_minutes = ?, advance_min_days = ?, advance_max_days = ?
+                SET open_time = ?, close_time = ?, open_start_period = ?, open_end_period = ?,
+                    min_periods = ?, max_periods = ?, advance_min_days = ?, advance_max_days = ?
                 WHERE rule_id = ? AND lab_id = ?
                 """, DayTimes.format(openTime, false), DayTimes.format(closeTime, true),
-                request.minDurationMinutes(), request.maxDurationMinutes(),
+                request.openStartPeriod(), request.openEndPeriod(),
+                request.minPeriods(), request.maxPeriods(),
                 request.advanceMinDays(), request.advanceMaxDays(), ruleId, labId);
         return com.campus.lab.resource.dto.TimeRuleView.from(
                 ruleValidator.merge(requireRule(labId, ruleId), global));
@@ -174,15 +180,16 @@ public class AdminResourceService {
     private TimeRule requireRule(long labId, long ruleId) {
         List<TimeRule> rules = jdbcTemplate.query("""
                 SELECT rule_id, lab_id, day_of_week, open_time, close_time,
-                       min_duration_minutes, max_duration_minutes,
+                       open_start_period, open_end_period, min_periods, max_periods,
                        advance_min_days, advance_max_days
                 FROM t_time_rule WHERE lab_id = ? AND rule_id = ?
                 """, (rs, rowNum) -> new TimeRule(
                 rs.getLong("rule_id"), rs.getLong("lab_id"), rs.getInt("day_of_week"),
                 DayTimes.parseDatabaseTime(rs.getString("open_time")),
                 DayTimes.parseDatabaseTime(rs.getString("close_time")),
-                rs.getObject("min_duration_minutes", Integer.class),
-                rs.getObject("max_duration_minutes", Integer.class),
+                rs.getInt("open_start_period"), rs.getInt("open_end_period"),
+                rs.getObject("min_periods", Integer.class),
+                rs.getObject("max_periods", Integer.class),
                 rs.getObject("advance_min_days", Integer.class),
                 rs.getObject("advance_max_days", Integer.class)), labId, ruleId);
         if (rules.isEmpty()) {
@@ -205,8 +212,8 @@ public class AdminResourceService {
         Map<String, String> config = jdbcTemplate.query("""
                 SELECT config_key, config_value FROM t_sys_config
                 WHERE config_key IN (
-                    'reservation.duration.min.minutes',
-                    'reservation.duration.max.minutes',
+                    'reservation.duration.min.periods',
+                    'reservation.duration.max.periods',
                     'reservation.advance.min.days',
                     'reservation.advance.max.days')
                 """, rs -> {
@@ -217,8 +224,8 @@ public class AdminResourceService {
             return values;
         });
         return new ReservationRuleConfig(
-                requiredInt(config, "reservation.duration.min.minutes"),
-                requiredInt(config, "reservation.duration.max.minutes"),
+                requiredInt(config, "reservation.duration.min.periods"),
+                requiredInt(config, "reservation.duration.max.periods"),
                 requiredInt(config, "reservation.advance.min.days"),
                 requiredInt(config, "reservation.advance.max.days"));
     }
