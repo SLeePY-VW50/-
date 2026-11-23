@@ -22,13 +22,13 @@ const selection = ref<SlotRange | null>(null)
 const showForm = ref(false)
 const success = ref('')
 const gridMode = ref<'ROOM' | 'SEAT'>('ROOM')
-const durationMinutes = ref(60)
+const durationPeriods = ref(2)
 const attendeeCount = ref(1)
 const recommendations = ref<SlotRecommendation[]>([])
 const recommendationNote = ref('')
 const recommending = ref(false)
 const formKey = ref(0)
-watch([gridMode, durationMinutes, attendeeCount], () => {
+watch([gridMode, durationPeriods, attendeeCount], () => {
   recommendations.value = []
   recommendationNote.value = ''
 })
@@ -61,8 +61,8 @@ const rangeText = computed(() => {
   if (!selection.value || !availability.value) return ''
   const start = availability.value.slots[selection.value.start]?.start
   const end = availability.value.slots[selection.value.end]?.end
-  const minutes = (selection.value.end - selection.value.start + 1) * 30
-  return `${start}–${end}，${minutes} 分钟`
+  const count = selection.value.end - selection.value.start + 1
+  return `${start}–${end}，${count} 节`
 })
 const dayRule = computed(() => {
   if (!rules.value) return null
@@ -130,7 +130,7 @@ async function loadRecommendations() {
       params: {
         labId: selectedLabId.value,
         date: date.value,
-        durationMinutes: durationMinutes.value,
+        durationPeriods: durationPeriods.value,
         reservationMode: gridMode.value,
         attendeeCount: attendeeCount.value,
       },
@@ -191,13 +191,13 @@ onMounted(loadLabs)
       </div>
       <p v-else-if="gridMode === 'SEAT' && availability" class="seat-note">该实验室无工位数据。</p>
       <div v-if="rules" class="rules">
-        <p>{{ dayRule ? `当日预约时长 ${dayRule.minDurationMinutes}–${dayRule.maxDurationMinutes} 分钟。` : '当日未配置开放规则。' }}</p>
+        <p>{{ dayRule ? `当日可约第 ${dayRule.openStartPeriod}–${dayRule.openEndPeriod} 节，每次 ${dayRule.minPeriods}–${dayRule.maxPeriods} 节。` : '当日未配置开放规则。' }}</p>
         <p v-if="dayRule">提前 {{ dayRule.advanceMinDays }}–{{ dayRule.advanceMaxDays }} 天。</p>
         <p>开始前 {{ rules.cancellation.freeBeforeHours }} 小时可免费取消。</p>
         <p>签到窗口开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟。</p>
       </div>
       <div v-if="canReserve && labs.length">
-        <label class="field"><span>时长</span><select v-model.number="durationMinutes" data-testid="recommend-duration"><option v-for="minutes in 8" :key="minutes" :value="minutes * 30">{{ minutes * 30 }} 分钟</option></select></label>
+        <label class="field"><span>节数</span><select v-model.number="durationPeriods" data-testid="recommend-duration"><option v-for="count in (dayRule?.maxPeriods || 5)" :key="count" :value="count">{{ count }} 节</option></select></label>
         <label class="field"><span>人数</span><input v-model.number="attendeeCount" data-testid="recommend-attendees" type="number" min="1"></label>
         <button class="recommend" type="button" data-testid="recommend" :disabled="recommending" @click="loadRecommendations">{{ recommending ? '正在计算…' : '推荐空闲时段' }}</button>
         <p v-if="recommendationNote" class="seat-note" data-testid="recommendation-note">{{ recommendationNote }}</p>
@@ -212,12 +212,12 @@ onMounted(loadLabs)
       </div>
     </aside>
     <section class="ruler-main">
-      <div class="main-head"><b>{{ headLabel }}</b><span>每格 30 分钟</span></div>
+      <div class="main-head"><b>{{ headLabel }}</b><span>一节一格</span></div>
       <div v-if="success" class="success-banner ruler-banner" role="status">{{ success }}</div>
       <div v-if="error" class="error-banner ruler-banner" role="alert">{{ error }} <button class="button button--small" @click="selectedLabId ? loadAvailability() : loadLabs()">重试</button></div>
       <div v-if="loading" class="loading-line">正在读取开放规则与占用位图</div>
       <EmptyState v-else-if="!error && !labs.length" title="暂无实验室" description="实验室资源尚未配置。" />
-      <SlotGrid v-else-if="availability && selectedLab" v-model="selection" :slots="availability.slots" :mode="gridMode" :date="date" :disabled="availability.labStatus !== 'ACTIVE' || !dayRule" :open-time="openTime" :close-time="closeTime" />
+      <SlotGrid v-else-if="availability && selectedLab" v-model="selection" :slots="availability.slots" :mode="gridMode" :date="date" :max-periods="dayRule?.maxPeriods || 5" :disabled="availability.labStatus !== 'ACTIVE' || !dayRule" />
     </section>
     <el-dialog v-if="canReserve" v-model="showForm" title="新建预约" width="760px" destroy-on-close>
       <ReservationForm :key="formKey" :labs="labs.filter((lab) => lab.status === 'ACTIVE')" :initial-lab-id="selectedLabId" :initial-date="date" :initial-allocation-mode="selection ? 'FIXED' : initialAllocationMode" :initial-reservation-mode="gridMode" :initial-attendee-count="attendeeCount" :selected-range="selection" @submitted="onReserved" />

@@ -34,8 +34,8 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
         String token = teacherToken();
 
         JsonNode created = responseJson(postBatch(token, batchRequest("教师批次成功", List.of(
-                        item(FIRST_DATE, "09:00", "10:00"),
-                        item(SECOND_DATE, "13:00", "15:00"))))
+                        item(FIRST_DATE, "09:15", "10:00"),
+                        item(SECOND_DATE, "13:30", "15:00"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.batchNo").isNotEmpty())
@@ -65,11 +65,11 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT mask FROM t_slot_bitmap WHERE lab_id = ? AND bitmap_date = ?",
                 Long.class, labId, FIRST_DATE)).isEqualTo(
-                        TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value());
+                        com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value());
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT mask FROM t_slot_bitmap WHERE lab_id = ? AND bitmap_date = ?",
                 Long.class, labId, SECOND_DATE)).isEqualTo(
-                        TimeSlotMask.between(LocalTime.of(13, 0), LocalTime.of(15, 0)).value());
+                        com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(13, 30), LocalTime.of(15, 0)).value());
     }
 
     @Test
@@ -77,8 +77,8 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
         String token = teacherToken();
 
         postBatch(token, batchRequest("批内重叠", List.of(
-                        item(FIRST_DATE, "09:00", "10:00"),
-                        item(FIRST_DATE, "09:30", "10:30"))))
+                        item(FIRST_DATE, "09:15", "10:00"),
+                        item(FIRST_DATE, "09:15", "10:50"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
 
@@ -98,8 +98,8 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
                 .andExpect(status().isOk());
 
         postBatch(teacherToken(), batchRequest("批次中途冲突", List.of(
-                        item(FIRST_DATE, "09:00", "10:00"),
-                        item(SECOND_DATE, "09:00", "10:00"))))
+                        item(FIRST_DATE, "09:15", "10:00"),
+                        item(SECOND_DATE, "09:15", "10:00"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409));
 
@@ -125,7 +125,7 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
             String account = createTestAccount(role);
             String token = loginAndGetToken(account, "Lab@2026");
 
-            postBatch(token, batchRequest("越权批次", List.of(item(FIRST_DATE, "09:00", "10:00"))))
+            postBatch(token, batchRequest("越权批次", List.of(item(FIRST_DATE, "09:15", "10:00"))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value(403));
         }
@@ -154,7 +154,7 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
     @Test
     void batchRejectsNullItem() throws Exception {
         List<Map<String, Object>> items = java.util.Arrays.asList(
-                item(FIRST_DATE, "09:00", "10:00"), null);
+                item(FIRST_DATE, "09:15", "10:00"), null);
 
         postBatch(teacherToken(), batchRequest("空批次明细", items))
                 .andExpect(status().isBadRequest())
@@ -181,7 +181,7 @@ class BatchReservationIntegrationTest extends AbstractReservationNonTransactiona
         request.put("allocationMode", "FIXED");
         request.put("labId", labId);
         request.put("date", SECOND_DATE.toString());
-        request.put("startTime", "09:00");
+        request.put("startTime", "09:15");
         request.put("endTime", "10:00");
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 1);

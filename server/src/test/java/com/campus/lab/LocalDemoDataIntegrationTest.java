@@ -62,12 +62,13 @@ class LocalDemoDataIntegrationTest extends AbstractIntegrationTest {
                 """, Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_time_rule r JOIN t_lab l ON l.lab_id = r.lab_id
-                WHERE l.lab_code = 'LAB-CHECKIN-DEMO' AND r.open_time = '00:00:00'
-                  AND r.close_time = '24:00:00' AND r.advance_min_days = 0 AND r.advance_max_days = 14
+                WHERE l.lab_code = 'LAB-CHECKIN-DEMO' AND r.open_time = '08:30:00'
+                  AND r.close_time = '20:50:00' AND r.open_end_period = 13
+                  AND r.advance_min_days = 0 AND r.advance_max_days = 14
                 """, Integer.class)).isEqualTo(7);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_time_rule r JOIN t_lab l ON l.lab_id = r.lab_id
-                WHERE l.lab_code = 'LAB-A' AND r.open_time = '08:00:00' AND r.close_time = '22:00:00'
+                WHERE l.lab_code = 'LAB-A' AND r.open_time = '08:30:00' AND r.close_time = '17:30:00'
                   AND r.advance_min_days IS NULL
                 """, Integer.class)).isEqualTo(7);
     }

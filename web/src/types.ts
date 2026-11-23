@@ -33,8 +33,10 @@ export interface TimeRule {
   dayOfWeek: number
   openTime: string
   closeTime: string
-  minDurationMinutes: number
-  maxDurationMinutes: number
+  openStartPeriod: number
+  openEndPeriod: number
+  minPeriods: number
+  maxPeriods: number
   advanceMinDays: number
   advanceMaxDays: number
 }
@@ -54,8 +56,12 @@ export interface LabRules {
 
 export interface SlotAvailability {
   index: number
+  periodNo: number
+  session: 'MORNING' | 'AFTERNOON' | 'EVENING'
+  label: string
   start: string
   end: string
+  bookable: boolean
   roomOccupied: boolean
   occupiedSeatCount: number
   availableSeatCount: number
@@ -93,7 +99,7 @@ export interface SlotRecommendation {
   endSlot: number
   startTime: string
   endTime: string
-  durationMinutes: number
+  durationPeriods: number
 }
 
 export interface SlotRecommendations {
@@ -118,7 +124,7 @@ export interface SchedulableReservationDraft {
   date: string
   windowStart: string
   windowEnd: string
-  durationMinutes: number
+  durationPeriods: number
   reservationMode: 'ROOM' | 'SEAT'
   attendeeCount: number
   purpose?: string
@@ -135,7 +141,7 @@ export interface CreateReservationPayload {
   endTime: string | null
   windowStart: string | null
   windowEnd: string | null
-  durationMinutes: number | null
+  durationPeriods: number | null
   reservationMode: 'ROOM' | 'SEAT'
   attendeeCount: number
   seatCount: number | null

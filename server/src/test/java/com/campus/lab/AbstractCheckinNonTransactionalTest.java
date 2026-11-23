@@ -114,7 +114,11 @@ public abstract class AbstractCheckinNonTransactionalTest extends AbstractReserv
                     """, start, reservationId);
         }
         if (withOccupancy) {
-            long mask = TimeSlotMask.between(start.toLocalTime(), end.toLocalTime()).value();
+            long mask = com.campus.lab.period.DongfangPeriodTable.schedule()
+                    .overlapMask(start.toLocalTime(), end.toLocalTime());
+            if (mask == 0) {
+                mask = 1L;
+            }
             jdbcTemplate.update("""
                     INSERT INTO t_slot_bitmap (lab_id, bitmap_date, mask, version)
                     VALUES (?, ?, 0, 0)

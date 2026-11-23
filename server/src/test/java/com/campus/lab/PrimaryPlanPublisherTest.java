@@ -123,7 +123,7 @@ class PrimaryPlanPublisherTest extends AbstractScheduleIntegrationTest {
         long pendingUserId = userIdByAccount(createTestAccount("STUDENT"));
         long fixedUserId = userIdByAccount(createTestAccount("STUDENT"));
         long pendingId = createPending(pendingUserId, labId, DATE);
-        createFixed(fixedUserId, labId, DATE, "09:00", "12:00");
+        createFixed(fixedUserId, labId, DATE, "09:15", "12:30");
 
         scheduleService.runBatch(DATE);
 
@@ -365,7 +365,7 @@ class PrimaryPlanPublisherTest extends AbstractScheduleIntegrationTest {
         LocalDateTime end = jdbcTemplate.queryForObject(
                 "SELECT end_time FROM t_reservation WHERE resv_id = ?",
                 LocalDateTime.class, pendingId);
-        long expectedMask = TimeSlotMask.between(start.toLocalTime(), end.toLocalTime()).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(start.toLocalTime(), end.toLocalTime()).value();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT mask FROM t_slot_bitmap WHERE lab_id = ? AND bitmap_date = ?",
                 Long.class, labId, DATE)).isEqualTo(expectedMask);
@@ -410,7 +410,7 @@ class PrimaryPlanPublisherTest extends AbstractScheduleIntegrationTest {
         assertThat(secondSeatId).isEqualTo(firstSeatId);
         long expectedMask = 0;
         for (int index = 0; index < starts.size(); index++) {
-            expectedMask |= TimeSlotMask.between(
+            expectedMask |= com.campus.lab.period.DongfangPeriodTable.schedule().between(
                     starts.get(index).toLocalTime(), ends.get(index).toLocalTime()).value();
         }
         assertThat(jdbcTemplate.queryForObject(
@@ -424,7 +424,7 @@ class PrimaryPlanPublisherTest extends AbstractScheduleIntegrationTest {
     private long createPendingRoom(long userId, long labId, int attendees) {
         return reservationService.create(userId, new CreateReservationRequest(
                 AllocationMode.SCHEDULABLE, labId, DATE, null, null,
-                "09:00", "12:00", 60, ReservationMode.ROOM, attendees, null,
+                "09:15", "12:30", 2, ReservationMode.ROOM, attendees, null,
                 "排期整室发布测试", new ReservationPreferences(null, null, null, List.of(labId)))).resvId();
     }
 

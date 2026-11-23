@@ -5,5 +5,5 @@ public record SlotRecommendationView(
         int endSlot,
         String startTime,
         String endTime,
-        int durationMinutes) {
+        int durationPeriods) {
 }

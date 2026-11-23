@@ -2,7 +2,6 @@
 import { onMounted, ref } from 'vue'
 import http, { errorMessage } from '../../api/http'
 import type { Lab, LabRules, TimeRule } from '../../types'
-import { timeOnly } from '../../utils'
 import EmptyState from '../../components/EmptyState.vue'
 
 const labs = ref<Lab[]>([])
@@ -14,8 +13,6 @@ const savingId = ref<number | null>(null)
 const error = ref('')
 const success = ref('')
 const weekdays = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const startOptions = Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
-const endOptions = [...startOptions.slice(1), '24:00']
 
 async function loadLabs() {
   try { labs.value = await http.get<Lab[]>('/api/labs'); if (labs.value.length) { labId.value = labs.value[0].labId; await loadRules() } } catch (cause) { error.value = errorMessage(cause) }
@@ -25,14 +22,14 @@ async function loadRules() {
   loading.value = true; error.value = ''
   try {
     rules.value = await http.get<LabRules>(`/api/labs/${labId.value}/rules`)
-    editable.value = rules.value.weeklyRules.map((rule) => ({ ...rule, openTime: timeOnly(rule.openTime), closeTime: timeOnly(rule.closeTime, true) })).sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+    editable.value = rules.value.weeklyRules.map((rule) => ({ ...rule })).sort((a, b) => a.dayOfWeek - b.dayOfWeek)
   } catch (cause) { error.value = errorMessage(cause); rules.value = null; editable.value = [] } finally { loading.value = false }
 }
 async function save(rule: TimeRule) {
   if (!labId.value) return
   savingId.value = rule.ruleId; error.value = ''; success.value = ''
   try {
-    await http.put(`/api/admin/labs/${labId.value}/rules/${rule.ruleId}`, { openTime: rule.openTime, closeTime: rule.closeTime, minDurationMinutes: Number(rule.minDurationMinutes), maxDurationMinutes: Number(rule.maxDurationMinutes), advanceMinDays: Number(rule.advanceMinDays), advanceMaxDays: Number(rule.advanceMaxDays) })
+    await http.put(`/api/admin/labs/${labId.value}/rules/${rule.ruleId}`, { openStartPeriod: Number(rule.openStartPeriod), openEndPeriod: Number(rule.openEndPeriod), minPeriods: Number(rule.minPeriods), maxPeriods: Number(rule.maxPeriods), advanceMinDays: Number(rule.advanceMinDays), advanceMaxDays: Number(rule.advanceMaxDays) })
     success.value = `${weekdays[rule.dayOfWeek]}开放规则已保存`
     await loadRules()
   } catch (cause) { error.value = errorMessage(cause) } finally { savingId.value = null }
@@ -41,7 +38,7 @@ onMounted(loadLabs)
 </script>
 
 <template>
-  <div class="page"><header class="page-header"><div><span class="eyebrow">系统管理 · 开放规则</span><h1>每周开放规则</h1><p>逐日编辑真实规则，时间按30分钟对齐，关闭时间支持24:00。</p></div><label class="field"><span>实验室</span><select v-model.number="labId" @change="loadRules"><option v-for="lab in labs" :key="lab.labId" :value="lab.labId">{{ lab.name }}</option></select></label></header><div v-if="success" class="success-banner" role="status">{{ success }}</div><div v-if="error" class="error-banner" role="alert">{{ error }}</div><div v-if="loading" class="loading-line">正在读取每周规则</div><EmptyState v-else-if="!error && !editable.length" title="暂无开放规则" /><section v-else class="rule-list"><article v-for="rule in editable" :key="rule.ruleId" class="panel rule-row"><div class="rule-day"><strong>{{ weekdays[rule.dayOfWeek] || `星期${rule.dayOfWeek}` }}</strong><span class="mono">RULE #{{ rule.ruleId }}</span></div><div class="rule-fields"><label class="field"><span>开放</span><select v-model="rule.openTime"><option v-for="time in startOptions" :key="time">{{ time }}</option></select></label><label class="field"><span>关闭</span><select v-model="rule.closeTime"><option v-for="time in endOptions" :key="time">{{ time }}</option></select></label><label class="field"><span>最短/分钟</span><input v-model.number="rule.minDurationMinutes" type="number" min="1"></label><label class="field"><span>最长/分钟</span><input v-model.number="rule.maxDurationMinutes" type="number" min="1"></label><label class="field"><span>最少提前/天</span><input v-model.number="rule.advanceMinDays" type="number" min="0"></label><label class="field"><span>最多提前/天</span><input v-model.number="rule.advanceMaxDays" type="number" min="0"></label><button class="button button--primary" :disabled="savingId === rule.ruleId" @click="save(rule)">{{ savingId === rule.ruleId ? '保存中…' : '保存' }}</button></div></article></section><section v-if="rules" class="panel rule-notes"><h2>关联签到与取消规则</h2><dl class="detail-list"><dt>免费取消</dt><dd>开始前 {{ rules.cancellation.freeBeforeHours }} 小时</dd><dt>签到窗口</dt><dd>开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟</dd><dt>选择有效期</dt><dd>{{ rules.checkin.choiceExpireSeconds }} 秒</dd><dt>失败锁定</dt><dd>失败 {{ rules.checkin.maxFailedAttempts }} 次后锁定 {{ rules.checkin.lockoutMinutes }} 分钟</dd></dl></section></div>
+  <div class="page"><header class="page-header"><div><span class="eyebrow">系统管理 · 开放规则</span><h1>每周开放规则</h1><p>逐日配置开放节次和每次可约节数。保存后开放时刻跟随该实验室的节次表。</p></div><label class="field"><span>实验室</span><select v-model.number="labId" @change="loadRules"><option v-for="lab in labs" :key="lab.labId" :value="lab.labId">{{ lab.name }}</option></select></label></header><div v-if="success" class="success-banner" role="status">{{ success }}</div><div v-if="error" class="error-banner" role="alert">{{ error }}</div><div v-if="loading" class="loading-line">正在读取每周规则</div><EmptyState v-else-if="!error && !editable.length" title="暂无开放规则" /><section v-else class="rule-list"><article v-for="rule in editable" :key="rule.ruleId" class="panel rule-row"><div class="rule-day"><strong>{{ weekdays[rule.dayOfWeek] || `星期${rule.dayOfWeek}` }}</strong><span class="mono">RULE #{{ rule.ruleId }}</span></div><div class="rule-fields"><label class="field"><span>起始节</span><input v-model.number="rule.openStartPeriod" type="number" min="1"></label><label class="field"><span>结束节</span><input v-model.number="rule.openEndPeriod" type="number" min="1"></label><label class="field"><span>最少节</span><input v-model.number="rule.minPeriods" type="number" min="1"></label><label class="field"><span>最多节</span><input v-model.number="rule.maxPeriods" type="number" min="1"></label><label class="field"><span>最少提前/天</span><input v-model.number="rule.advanceMinDays" type="number" min="0"></label><label class="field"><span>最多提前/天</span><input v-model.number="rule.advanceMaxDays" type="number" min="0"></label><button class="button button--primary" :disabled="savingId === rule.ruleId" @click="save(rule)">{{ savingId === rule.ruleId ? '保存中…' : '保存' }}</button></div></article></section><section v-if="rules" class="panel rule-notes"><h2>关联签到与取消规则</h2><dl class="detail-list"><dt>免费取消</dt><dd>开始前 {{ rules.cancellation.freeBeforeHours }} 小时</dd><dt>签到窗口</dt><dd>开始前 {{ rules.checkin.beforeMinutes }} 分钟，宽限 {{ rules.checkin.graceMinutes }} 分钟</dd><dt>选择有效期</dt><dd>{{ rules.checkin.choiceExpireSeconds }} 秒</dd><dt>失败锁定</dt><dd>失败 {{ rules.checkin.maxFailedAttempts }} 次后锁定 {{ rules.checkin.lockoutMinutes }} 分钟</dd></dl></section></div>
 </template>
 
 <style scoped>

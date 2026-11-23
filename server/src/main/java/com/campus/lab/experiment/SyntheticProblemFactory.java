@@ -1,5 +1,7 @@
 package com.campus.lab.experiment;
 
+import com.campus.lab.period.DongfangPeriodTable;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ReservationMode;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.reservation.SeatSnapshot;
@@ -22,7 +24,9 @@ class SyntheticProblemFactory {
     static final LocalDate DATE = LocalDate.of(2026, 10, 26);
     private static final int LAB_COUNT = 8;
     private static final int SEATS_PER_LAB = 20;
-    private static final long OPEN_MASK = ((1L << 28) - 1) << 16;
+    private static final PeriodSchedule PERIODS = DongfangPeriodTable.schedule();
+    private static final long OPEN_MASK = PERIODS.bookableMask(
+            java.time.LocalTime.of(8, 30), java.time.LocalTime.of(17, 30), 1, 10);
 
     ScheduleProblem generate(int dataScale, long seed) {
         Random random = new Random(seed);
@@ -43,19 +47,19 @@ class SyntheticProblemFactory {
             }
             EffectiveTimeRule rule = new EffectiveTimeRule(
                     labId, labId, DATE.getDayOfWeek().getValue(),
-                    LocalTime.of(8, 0), LocalTime.of(22, 0), 30, 240, 0, 365);
+                    LocalTime.of(8, 30), LocalTime.of(17, 30), 1, 10, 1, 5, 0, 365);
             resources.add(new ScheduleLabResource(
                     labId, DATE, ResourceStatus.ACTIVE, SEATS_PER_LAB,
-                    OPEN_MASK, 0, seats, rule));
+                    OPEN_MASK, 0, seats, rule, PERIODS));
         }
 
         List<ScheduleDemand> demands = new ArrayList<>();
         LocalDateTime createdAt = LocalDateTime.of(2026, 10, 1, 8, 0);
         for (int index = 0; index < dataScale; index++) {
             ReservationMode mode = index % 10 < 3 ? ReservationMode.ROOM : ReservationMode.SEAT;
-            int duration = 30 * (1 + random.nextInt(4));
-            int startSlot = 16 + random.nextInt(20);
-            int windowEnd = Math.min(44, startSlot + duration / 30 + 1 + random.nextInt(4));
+            int duration = 1 + random.nextInt(4);
+            int startSlot = random.nextInt(10 - duration);
+            int windowEndSlot = Math.min(10, startSlot + duration + 1 + random.nextInt(3));
             int attendees = mode == ReservationMode.ROOM
                     ? 4 + random.nextInt(17) : 1 + random.nextInt(3);
             String minimumSpec = null;
@@ -72,11 +76,16 @@ class SyntheticProblemFactory {
                     ? Set.of() : Set.of(9001L + random.nextInt(LAB_COUNT));
             demands.add(new ScheduleDemand(
                     index + 1L, 1 + random.nextInt(Math.max(10, dataScale / 2)),
-                    createdAt.plusSeconds(index), DATE, startSlot * 30, windowEnd * 30,
+                    createdAt.plusSeconds(index), DATE,
+                    minute(PERIODS.startTime(startSlot)), minute(PERIODS.endTime(windowEndSlot)),
                     duration, mode, attendees, mode == ReservationMode.SEAT ? attendees : 0,
                     60 + random.nextInt(41), minimumSpec, preferredZone, random.nextBoolean(),
                     allowedLabs));
         }
         return new ScheduleProblem(demands, resources);
+    }
+
+    private static int minute(LocalTime time) {
+        return time.getHour() * 60 + time.getMinute();
     }
 }

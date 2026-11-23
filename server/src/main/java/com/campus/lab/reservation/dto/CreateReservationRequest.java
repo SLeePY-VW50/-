@@ -12,7 +12,7 @@ public record CreateReservationRequest(
         String endTime,
         String windowStart,
         String windowEnd,
-        Integer durationMinutes,
+        Integer durationPeriods,
         ReservationMode reservationMode,
         Integer attendeeCount,
         Integer seatCount,

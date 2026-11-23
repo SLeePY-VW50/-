@@ -29,23 +29,26 @@ class ReservationDayEndIntegrationTest extends AbstractReservationNonTransaction
                 Long.class, labId);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"24:00", "24:00:00"})
-    void adminConfiguresEndOfDayThenFixedAndSchedulableUseIt(String closeTime) throws Exception {
+    @org.junit.jupiter.api.Test
+    void adminOpensTheLastEveningPeriodThenFixedAndSchedulableUseIt() throws Exception {
         String adminToken = loginAndGetToken(createTestAccount("SYS_ADMIN"), "Lab@2026");
         Map<String, Object> rule = new HashMap<>();
-        rule.put("openTime", "08:00");
-        rule.put("closeTime", closeTime);
+        rule.put("openStartPeriod", 1);
+        rule.put("openEndPeriod", 13);
+        rule.put("minPeriods", 1);
+        rule.put("maxPeriods", 5);
+        rule.put("advanceMinDays", 0);
+        rule.put("advanceMaxDays", 14);
 
         mockMvc.perform(put("/api/admin/labs/{labId}/rules/{ruleId}", labId, ruleId)
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(rule)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.closeTime").value("24:00:00"));
+                .andExpect(jsonPath("$.data.closeTime").value("20:50:00"));
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT close_time FROM t_time_rule WHERE rule_id = ?", String.class, ruleId))
-                .isEqualTo("24:00:00");
+                .isEqualTo("20:50:00");
 
         String fixedToken = loginAndGetToken(createTestAccount("STUDENT"), "Lab@2026");
         mockMvc.perform(post("/api/reservations")
@@ -54,7 +57,7 @@ class ReservationDayEndIntegrationTest extends AbstractReservationNonTransaction
                         .content(objectMapper.writeValueAsString(fixedRequest())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("APPROVED"))
-                .andExpect(jsonPath("$.data.windowEnd").value("24:00:00"));
+                .andExpect(jsonPath("$.data.windowEnd").value("20:50:00"));
 
         String schedulableToken = loginAndGetToken(createTestAccount("STUDENT"), "Lab@2026");
         mockMvc.perform(post("/api/reservations")
@@ -63,7 +66,7 @@ class ReservationDayEndIntegrationTest extends AbstractReservationNonTransaction
                         .content(objectMapper.writeValueAsString(schedulableRequest())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("PENDING_SCHEDULE"))
-                .andExpect(jsonPath("$.data.windowEnd").value("24:00:00"));
+                .andExpect(jsonPath("$.data.windowEnd").value("20:50:00"));
     }
 
     private Map<String, Object> fixedRequest() {
@@ -71,8 +74,8 @@ class ReservationDayEndIntegrationTest extends AbstractReservationNonTransaction
         request.put("allocationMode", "FIXED");
         request.put("labId", labId);
         request.put("date", DATE.toString());
-        request.put("startTime", "23:30");
-        request.put("endTime", "24:00");
+        request.put("startTime", "20:05");
+        request.put("endTime", "20:50");
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 1);
         request.put("seatCount", 1);
@@ -85,9 +88,9 @@ class ReservationDayEndIntegrationTest extends AbstractReservationNonTransaction
         Map<String, Object> request = new HashMap<>();
         request.put("allocationMode", "SCHEDULABLE");
         request.put("date", DATE.toString());
-        request.put("windowStart", "23:00");
-        request.put("windowEnd", "24:00");
-        request.put("durationMinutes", 30);
+        request.put("windowStart", "18:30");
+        request.put("windowEnd", "20:50");
+        request.put("durationPeriods", 1);
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 1);
         request.put("seatCount", 1);

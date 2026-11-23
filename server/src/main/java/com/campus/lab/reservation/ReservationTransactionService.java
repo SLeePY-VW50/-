@@ -1,6 +1,7 @@
 package com.campus.lab.reservation;
 
 import com.campus.lab.common.BusinessException;
+import com.campus.lab.period.PeriodCatalog;
 import com.campus.lab.resource.EffectiveTimeRule;
 import com.campus.lab.resource.ResourceService;
 import com.campus.lab.resource.RuleValidationRequest;
@@ -18,13 +19,16 @@ public class ReservationTransactionService {
     private final ReservationRepository repository;
     private final ResourceService resourceService;
     private final RuleValidator ruleValidator;
+    private final PeriodCatalog periodCatalog;
     private final BitmapConflictDetector conflictDetector = new BitmapConflictDetector();
 
     public ReservationTransactionService(
-            ReservationRepository repository, ResourceService resourceService, RuleValidator ruleValidator) {
+            ReservationRepository repository, ResourceService resourceService,
+            RuleValidator ruleValidator, PeriodCatalog periodCatalog) {
         this.repository = repository;
         this.resourceService = resourceService;
         this.ruleValidator = ruleValidator;
+        this.periodCatalog = periodCatalog;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -154,7 +158,8 @@ public class ReservationTransactionService {
                 EffectiveTimeRule rule = effectiveRule(laboratory.labId(), request);
                 ruleValidator.validateWindow(
                         laboratory.labId(), request.date(), request.startTime(), request.endTime(),
-                        request.durationMinutes(), laboratory.status(), rule);
+                        request.periodCount(), laboratory.status(), rule,
+                        periodCatalog.forLab(laboratory.labId()));
                 suitableCandidates++;
             } catch (BusinessException | IllegalArgumentException exception) {
             }
@@ -211,7 +216,7 @@ public class ReservationTransactionService {
             ruleValidator.validate(
                     new RuleValidationRequest(
                             request.labId(), request.date(), request.startTime(), request.endTime(), List.of()),
-                    laboratory.status(), rule, seats);
+                    laboratory.status(), rule, seats, periodCatalog.forLab(request.labId()));
         } catch (IllegalArgumentException exception) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, exception.getMessage());
         }

@@ -21,8 +21,10 @@ const rules = {
     dayOfWeek,
     openTime: '08:00:00',
     closeTime: '22:00:00',
-    minDurationMinutes: 30,
-    maxDurationMinutes: 240,
+    openStartPeriod: 1,
+    openEndPeriod: 10,
+    minPeriods: 1,
+    maxPeriods: 5,
     advanceMinDays: 1,
     advanceMaxDays: 14,
   })),
@@ -101,14 +103,13 @@ describe('时间尺工位列表', () => {
   })
 
   it('点选后可以重置并重新选择', async () => {
-    const label = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
-    const slots = Array.from({ length: 48 }, (_, index) => ({
-      index,
-      start: label(index * 30),
-      end: label(index * 30 + 30),
-      roomOccupied: false,
-      occupiedSeatCount: 0,
-      availableSeatCount: 20,
+    const periods = [
+      ['08:30', '09:15', 'MORNING'], ['09:15', '10:00', 'MORNING'], ['10:05', '10:50', 'MORNING'],
+      ['11:00', '11:45', 'MORNING'], ['11:45', '12:30', 'MORNING'],
+    ] as const
+    const slots = periods.map(([start, end, session], index) => ({
+      index, periodNo: index + 1, session, label: `第${index + 1}节`, start, end, bookable: true,
+      roomOccupied: false, occupiedSeatCount: 0, availableSeatCount: 20,
     }))
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/api/labs') {
@@ -120,30 +121,28 @@ describe('时间尺工位列表', () => {
     })
 
     const wrapper = await mountLabs()
-    await wrapper.findAll('.cell')[16].trigger('click')
-    expect(wrapper.get('.range span').text()).toBe('08:00–08:30，30 分钟')
-    await wrapper.findAll('.cell')[20].trigger('click')
-    expect(wrapper.get('.range span').text()).toBe('08:00–10:30，150 分钟')
+    await wrapper.findAll('.cell')[0].trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('08:30–09:15，1 节')
+    await wrapper.findAll('.cell')[1].trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('08:30–10:00，2 节')
     expect(wrapper.find('button.reset').exists()).toBe(true)
 
     await wrapper.get('button.reset').trigger('click')
     expect(wrapper.get('.range span').text()).toBe('在开放格上点选一段连续时段')
     expect(wrapper.find('button.reset').exists()).toBe(false)
 
-    await wrapper.findAll('.cell')[18].trigger('click')
-    expect(wrapper.get('.range span').text()).toBe('09:00–09:30，30 分钟')
+    await wrapper.findAll('.cell')[2].trigger('click')
+    expect(wrapper.get('.range span').text()).toBe('10:05–10:50，1 节')
   })
 
   it('点击推荐时段只回填时间尺，不提交预约', async () => {
-    const label = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
-    const slots = Array.from({ length: 48 }, (_, index) => ({
-      index,
-      start: label(index * 30),
-      end: index === 47 ? '24:00' : label(index * 30 + 30),
-      roomOccupied: false,
-      occupiedSeatCount: 0,
-      availableSeatCount: 20,
-    }))
+    const slots = [{
+      index: 0, periodNo: 1, session: 'MORNING' as const, label: '第1节', start: '08:30', end: '09:15', bookable: true,
+      roomOccupied: false, occupiedSeatCount: 0, availableSeatCount: 20,
+    }, {
+      index: 1, periodNo: 2, session: 'MORNING' as const, label: '第2节', start: '09:15', end: '10:00', bookable: true,
+      roomOccupied: false, occupiedSeatCount: 0, availableSeatCount: 20,
+    }]
     vi.mocked(http.get).mockImplementation((url: string) => {
       if (url === '/api/labs') {
         return Promise.resolve([{ labId: 1, code: 'LAB-A', name: '人工智能实验室', location: '创新楼 A301', capacity: 20, status: 'ACTIVE' }])
@@ -153,23 +152,23 @@ describe('时间尺工位列表', () => {
       if (url.includes('/recommendations')) {
         return Promise.resolve({
           outcome: 'AVAILABLE',
-          recommendations: [{ startSlot: 16, endSlot: 18, startTime: '08:00', endTime: '09:00', durationMinutes: 60 }],
+          recommendations: [{ startSlot: 0, endSlot: 2, startTime: '08:30', endTime: '10:00', durationPeriods: 2 }],
         })
       }
       return Promise.reject(new Error(url))
     })
 
     const wrapper = await mountLabs()
-    await wrapper.get('[data-testid="recommend-duration"]').setValue('60')
+    await wrapper.get('[data-testid="recommend-duration"]').setValue('2')
     await wrapper.get('[data-testid="recommend-attendees"]').setValue('2')
     await wrapper.get('[data-testid="recommend"]').trigger('click')
     await flushPromises()
 
     expect(http.get).toHaveBeenCalledWith('/api/reservations/recommendations', expect.objectContaining({
-      params: expect.objectContaining({ labId: 1, durationMinutes: 60, reservationMode: 'ROOM', attendeeCount: 2 }),
+      params: expect.objectContaining({ labId: 1, durationPeriods: 2, reservationMode: 'ROOM', attendeeCount: 2 }),
     }))
     await wrapper.get('[data-testid="recommendation"]').trigger('click')
-    expect(wrapper.get('.range span').text()).toBe('08:00–09:00，60 分钟')
+    expect(wrapper.get('.range span').text()).toBe('08:30–10:00，2 节')
     expect(http.post).not.toHaveBeenCalled()
   })
 })

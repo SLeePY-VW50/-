@@ -197,7 +197,8 @@ final class ScheduleResourceState {
         }
         long occupied = 0;
         long available = 0;
-        for (int slot = 0; slot < 48; slot++) {
+        int slotCount = lab.resource.periodSchedule().slotCount();
+        for (int slot = 0; slot < slotCount; slot++) {
             long bit = 1L << slot;
             if ((lab.resource.openMask() & bit) == 0) {
                 continue;
@@ -213,9 +214,10 @@ final class ScheduleResourceState {
         }
         long roomOccupied = roomBlockingMask(key);
         int minimumSlots = minimumSlots(lab.resource);
-        long free = TimeFragments.freeSlots(lab.resource.openMask(), roomOccupied);
+            long free = TimeFragments.freeSlots(lab.resource.openMask(), roomOccupied);
         long fragmented = TimeFragments.fragmentedFreeSlots(
-                lab.resource.openMask(), roomOccupied, minimumSlots);
+                lab.resource.openMask(), roomOccupied, minimumSlots,
+                lab.resource.periodSchedule().slotCount());
         return new Metrics(occupied, available, fragmented, free);
     }
 
@@ -238,7 +240,8 @@ final class ScheduleResourceState {
                 long occupied = lab.roomMask | lab.seatMasks[index];
                 free += TimeFragments.freeSlots(lab.resource.openMask(), occupied);
                 fragmented += TimeFragments.fragmentedFreeSlots(
-                        lab.resource.openMask(), occupied, minimumSlots);
+                        lab.resource.openMask(), occupied, minimumSlots,
+                        lab.resource.periodSchedule().slotCount());
             }
         }
         return free == 0 ? 0 : (double) fragmented / free;
@@ -246,7 +249,7 @@ final class ScheduleResourceState {
 
     private static int minimumSlots(ScheduleLabResource resource) {
         return resource.effectiveRule() == null
-                ? 1 : Math.max(1, resource.effectiveRule().minDurationMinutes() / 30);
+                ? 1 : Math.max(1, resource.effectiveRule().minPeriods());
     }
 
     private static int plannedSeatCount(LabState lab, int slot) {
@@ -264,7 +267,8 @@ final class ScheduleResourceState {
     private long roomBlockingMask(LabDateKey key) {
         LabState lab = lab(key);
         long blocked = lab.roomMask | lab.allSeatMasks;
-        for (int slot = 0; slot < 48; slot++) {
+        int slotCount = lab.resource.periodSchedule().slotCount();
+        for (int slot = 0; slot < slotCount; slot++) {
             if (plannedSeatCount(lab, slot) > 0) {
                 blocked |= 1L << slot;
             }
@@ -287,9 +291,10 @@ final class ScheduleResourceState {
             this.resource = resource;
             roomMask = resource.roomMask();
             seatMasks = new long[resource.seats().size()];
-            activeOccupiedCounts = new int[48];
-            plannedSeatsBySpec = new int[4][48];
-            initiallyFreeSeats = new int[4][48];
+            int slotCount = resource.periodSchedule().slotCount();
+            activeOccupiedCounts = new int[slotCount];
+            plannedSeatsBySpec = new int[4][slotCount];
+            initiallyFreeSeats = new int[4][slotCount];
             long union = 0;
             int activeCount = 0;
             for (int index = 0; index < resource.seats().size(); index++) {
@@ -301,7 +306,7 @@ final class ScheduleResourceState {
                 }
                 activeCount++;
                 int spec = ScheduleSpecRank.of(seat.specLevel());
-                for (int slot = 0; slot < 48; slot++) {
+                for (int slot = 0; slot < slotCount; slot++) {
                     if ((seat.mask() & (1L << slot)) != 0) {
                         activeOccupiedCounts[slot]++;
                     } else {

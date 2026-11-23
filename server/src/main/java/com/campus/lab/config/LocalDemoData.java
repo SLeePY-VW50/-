@@ -54,8 +54,9 @@ public class LocalDemoData implements ApplicationRunner {
         for (int day = 1; day <= 7; day++) {
             jdbcTemplate.update("""
                     INSERT INTO t_time_rule
-                        (lab_id, day_of_week, open_time, close_time, advance_min_days, advance_max_days)
-                    VALUES (?, ?, '00:00:00', '24:00:00', 0, 14)
+                        (lab_id, day_of_week, open_time, close_time,
+                         open_start_period, open_end_period, advance_min_days, advance_max_days)
+                    VALUES (?, ?, '08:30:00', '20:50:00', 1, 13, 0, 14)
                     ON DUPLICATE KEY UPDATE rule_id = t_time_rule.rule_id
                     """, labId, day);
         }
@@ -112,8 +113,9 @@ public class LocalDemoData implements ApplicationRunner {
     private void createTimeRules(long labId) {
         for (int day = 1; day <= 7; day++) {
             jdbcTemplate.update("""
-                    INSERT INTO t_time_rule (lab_id, day_of_week, open_time, close_time)
-                    VALUES (?, ?, '08:00:00', '22:00:00')
+                    INSERT INTO t_time_rule
+                        (lab_id, day_of_week, open_time, close_time, open_start_period, open_end_period)
+                    VALUES (?, ?, '08:30:00', '17:30:00', 1, 10)
                     ON DUPLICATE KEY UPDATE rule_id = t_time_rule.rule_id
                     """, labId, day);
         }

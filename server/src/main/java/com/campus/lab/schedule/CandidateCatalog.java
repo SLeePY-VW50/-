@@ -1,8 +1,11 @@
 package com.campus.lab.schedule;
 
+import com.campus.lab.common.DayTimes;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ReservationMode;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.reservation.SeatSnapshot;
+import com.campus.lab.reservation.TimeSlotMask;
 import com.campus.lab.resource.EffectiveTimeRule;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -106,8 +109,8 @@ final class CandidateCatalog {
         if (resource.status() != ResourceStatus.ACTIVE || rule == null
                 || rule.labId() != resource.labId()
                 || rule.dayOfWeek() != demand.date().getDayOfWeek().getValue()
-                || demand.durationMinutes() < rule.minDurationMinutes()
-                || demand.durationMinutes() > rule.maxDurationMinutes()
+                || demand.durationPeriods() < rule.minPeriods()
+                || demand.durationPeriods() > rule.maxPeriods()
                 || demand.attendeeCount() > resource.capacity()
                 || demand.seatCount() > resource.capacity()
                 || rule.openTime() == null || rule.closeTime() == null) {
@@ -134,18 +137,16 @@ final class CandidateCatalog {
 
     private static void addTimeCandidates(
             ScheduleLabResource resource, ScheduleDemand demand, List<ScheduleCandidate> result) {
-        int openMinute = minuteOfDay(resource.effectiveRule().openTime());
-        int closeMinute = LocalTime.MIDNIGHT.equals(resource.effectiveRule().closeTime())
-                ? 1440 : minuteOfDay(resource.effectiveRule().closeTime());
-        int earliest = ((Math.max(demand.windowStart(), openMinute) + 29) / 30) * 30;
-        int latestEnd = (Math.min(demand.windowEnd(), closeMinute) / 30) * 30;
-        for (int start = earliest; start + demand.durationMinutes() <= latestEnd; start += 30) {
-            int startSlot = start / 30;
-            int endSlot = (start + demand.durationMinutes()) / 30;
-            long requested = com.campus.lab.reservation.TimeSlotMask.of(startSlot, endSlot).value();
-            if ((resource.openMask() & requested) == requested) {
-                result.add(new ScheduleCandidate(resource.labId(), resource.date(), startSlot, endSlot));
-            }
+        EffectiveTimeRule rule = resource.effectiveRule();
+        int openMinute = minuteOfDay(rule.openTime());
+        int closeMinute = DayTimes.minuteOfDay(rule.closeTime(), true);
+        int windowStart = Math.max(demand.windowStart(), openMinute);
+        int windowEnd = Math.min(demand.windowEnd(), closeMinute);
+        PeriodSchedule schedule = resource.periodSchedule();
+        for (TimeSlotMask mask : schedule.placements(
+                windowStart, windowEnd, demand.durationPeriods(), resource.openMask())) {
+            result.add(new ScheduleCandidate(
+                    resource.labId(), resource.date(), mask.startSlot(), mask.endSlot()));
         }
     }
 

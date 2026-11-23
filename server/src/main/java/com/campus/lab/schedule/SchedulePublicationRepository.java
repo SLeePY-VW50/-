@@ -64,7 +64,7 @@ public class SchedulePublicationRepository {
         String placeholders = String.join(",", Collections.nCopies(reservationIds.size(), "?"));
         return jdbcTemplate.query("""
                 SELECT resv_id, user_id, created_at, request_date, request_window_start,
-                       request_window_end, requested_duration_minutes, allocation_mode,
+                       request_window_end, requested_periods, allocation_mode,
                        reservation_mode, attendee_count, seat_count, preferences, status
                 FROM t_reservation WHERE resv_id IN (""" + placeholders + ") ORDER BY resv_id FOR UPDATE",
                 (rs, rowNum) -> mapReservation(rs), reservationIds.toArray());
@@ -82,7 +82,7 @@ public class SchedulePublicationRepository {
                 rs.getObject("request_date", LocalDate.class),
                 DayTimes.parseDatabaseTime(rs.getString("request_window_start")),
                 DayTimes.parseDatabaseTime(rs.getString("request_window_end")),
-                rs.getInt("requested_duration_minutes"),
+                rs.getInt("requested_periods"),
                 AllocationMode.valueOf(rs.getString("allocation_mode")),
                 ReservationMode.valueOf(rs.getString("reservation_mode")),
                 rs.getInt("attendee_count"), rs.getObject("seat_count", Integer.class),
@@ -133,10 +133,12 @@ public class SchedulePublicationRepository {
             long reservationId, long labId, LocalDateTime start, LocalDateTime end, int seatCount) {
         return jdbcTemplate.update("""
                 UPDATE t_reservation
-                SET status = 'APPROVED', lab_id = ?, start_time = ?, end_time = ?, seat_count = ?
+                SET status = 'APPROVED', lab_id = ?, start_time = ?, end_time = ?, seat_count = ?,
+                    requested_duration_minutes = TIMESTAMPDIFF(MINUTE, ?, ?)
                 WHERE resv_id = ? AND allocation_mode = 'SCHEDULABLE'
                   AND status = 'PENDING_SCHEDULE'
-                """, labId, Timestamp.valueOf(start), Timestamp.valueOf(end), seatCount, reservationId);
+                """, labId, Timestamp.valueOf(start), Timestamp.valueOf(end), seatCount,
+                Timestamp.valueOf(start), Timestamp.valueOf(end), reservationId);
     }
 
     public void insertPublishedSeat(long reservationId, long seatId, long mask) {
@@ -174,7 +176,7 @@ public class SchedulePublicationRepository {
 
     public record PublicationReservation(
             long resvId, long userId, LocalDateTime createdAt, LocalDate date,
-            LocalTime windowStart, LocalTime windowEnd, int durationMinutes,
+            LocalTime windowStart, LocalTime windowEnd, int periodCount,
             AllocationMode allocationMode, ReservationMode mode, int attendeeCount,
             Integer seatCount, ReservationPreferences preferences, ReservationStatus status) {
     }

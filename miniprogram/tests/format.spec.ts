@@ -71,7 +71,7 @@ function lab(labId: number): Lab {
 function rules(labId: number, dayOfWeek: number): LabRules {
   return {
     labId,
-    weeklyRules: [{ ruleId: labId, labId, dayOfWeek, openTime: '08:00:00', closeTime: '24:00:00', minDurationMinutes: 30, maxDurationMinutes: 240, advanceMinDays: 0, advanceMaxDays: 14 }],
+    weeklyRules: [{ ruleId: labId, labId, dayOfWeek, openTime: '08:30:00', closeTime: '17:30:00', openStartPeriod: 1, openEndPeriod: 10, minPeriods: 1, maxPeriods: 5, advanceMinDays: 0, advanceMaxDays: 14 }],
     cancellation: { freeBeforeHours: 24 },
     checkin: { beforeMinutes: 15, graceMinutes: 15, choiceExpireSeconds: 60, maxFailedAttempts: 3, lockoutMinutes: 30 },
   }
@@ -84,7 +84,7 @@ function availability(labId: number, date: string): LabAvailability {
     labStatus: 'ACTIVE',
     roomMask: '',
     seats: [],
-    slots: [{ index: 16, start: '08:00', end: '08:30', roomOccupied: false, occupiedSeatCount: 0, availableSeatCount: 10 }],
+    slots: [{ index: 0, periodNo: 1, session: 'MORNING', label: '第1节', start: '08:30', end: '09:15', bookable: true, roomOccupied: false, occupiedSeatCount: 0, availableSeatCount: 10 }],
   }
 }
 

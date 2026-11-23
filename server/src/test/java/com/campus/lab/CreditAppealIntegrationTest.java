@@ -409,7 +409,7 @@ class CreditAppealIntegrationTest extends AbstractReservationNonTransactionalTes
         request.put("allocationMode", "FIXED");
         request.put("labId", labId);
         request.put("date", FUTURE_DATE.toString());
-        request.put("startTime", "09:00");
+        request.put("startTime", "09:15");
         request.put("endTime", "10:00");
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 1);

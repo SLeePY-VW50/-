@@ -209,9 +209,9 @@ public class ReservationRepository {
                 INSERT INTO t_reservation
                     (user_id, batch_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
-                     lab_id, start_time, end_time, attendee_count, seat_count,
+                     requested_periods, lab_id, start_time, end_time, attendee_count, seat_count,
                      purpose, preferences, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -224,14 +224,15 @@ public class ReservationRepository {
             statement.setString(6, requestTime(request.startTime(), false));
             statement.setString(7, requestTime(request.endTime(), true));
             statement.setInt(8, request.durationMinutes());
-            setNullableLong(statement, 9, finalLabId);
-            setNullableTimestamp(statement, 10, finalStart);
-            setNullableTimestamp(statement, 11, finalEnd);
-            statement.setInt(12, request.attendeeCount());
-            setNullableInteger(statement, 13, finalSeatCount);
-            statement.setString(14, request.purpose());
-            statement.setString(15, preferencesJson(request));
-            statement.setString(16, status.name());
+            statement.setInt(9, request.periodCount());
+            setNullableLong(statement, 10, finalLabId);
+            setNullableTimestamp(statement, 11, finalStart);
+            setNullableTimestamp(statement, 12, finalEnd);
+            statement.setInt(13, request.attendeeCount());
+            setNullableInteger(statement, 14, finalSeatCount);
+            statement.setString(15, request.purpose());
+            statement.setString(16, preferencesJson(request));
+            statement.setString(17, status.name());
             return statement;
         }, keyHolder);
         Number key = keyHolder.getKey();

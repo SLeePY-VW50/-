@@ -102,9 +102,9 @@ class GeneticEngineTest {
     @Test
     void conflictingGenesAreRepairedAndReceiveAnExplicitViolationPenalty() {
         ScheduleDemand first = ScheduleTestFixtures.withWindow(
-                demand(1, 1, CREATED_AT, ReservationMode.ROOM, 60), 0, 120, 60);
+                demand(1, 1, CREATED_AT, ReservationMode.ROOM, 2), 510, 705, 2);
         ScheduleDemand second = ScheduleTestFixtures.withWindow(
-                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.ROOM, 60), 0, 120, 60);
+                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.ROOM, 2), 510, 705, 2);
         ScheduleProblem problem = new ScheduleProblem(
                 List.of(first, second), List.of(lab(1, 20, mask(0, 2), 0, lab(1).seats())));
         CandidateCatalog catalog = CandidateCatalog.create(problem);
@@ -127,10 +127,10 @@ class GeneticEngineTest {
     @Test
     void geneticRepairAllowsStandardAndGpuOnMatchingTwoSeatResource() {
         ScheduleDemand standard = ScheduleTestFixtures.withSpec(
-                demand(1, 1, CREATED_AT, ReservationMode.SEAT, 60), "STANDARD");
+                demand(1, 1, CREATED_AT, ReservationMode.SEAT, 2), "STANDARD");
         ScheduleDemand gpu = ScheduleTestFixtures.withSpec(
-                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 60), "GPU");
-        ScheduleLabResource resource = lab(1, 20, mask(16, 18), 0, List.of(
+                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 2), "GPU");
+        ScheduleLabResource resource = lab(1, 20, mask(0, 2), 0, List.of(
                 seat(1, 1, "GPU", "A", true, 0),
                 seat(2, 2, "STANDARD", "A", true, 0)));
         CandidateCatalog catalog = CandidateCatalog.create(
@@ -147,12 +147,12 @@ class GeneticEngineTest {
     @Test
     void geneticRepairRejectsThirdMixedSpecDemandOnTwoSeatResource() {
         ScheduleDemand standard = ScheduleTestFixtures.withSpec(
-                demand(1, 1, CREATED_AT, ReservationMode.SEAT, 60), "STANDARD");
+                demand(1, 1, CREATED_AT, ReservationMode.SEAT, 2), "STANDARD");
         ScheduleDemand high = ScheduleTestFixtures.withSpec(
-                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 60), "HIGH");
+                demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.SEAT, 2), "HIGH");
         ScheduleDemand gpu = ScheduleTestFixtures.withSpec(
-                demand(3, 3, CREATED_AT.plusMinutes(2), ReservationMode.SEAT, 60), "GPU");
-        ScheduleLabResource resource = lab(1, 20, mask(16, 18), 0, List.of(
+                demand(3, 3, CREATED_AT.plusMinutes(2), ReservationMode.SEAT, 2), "GPU");
+        ScheduleLabResource resource = lab(1, 20, mask(0, 2), 0, List.of(
                 seat(1, 1, "GPU", "A", true, 0),
                 seat(2, 2, "STANDARD", "A", true, 0)));
         CandidateCatalog catalog = CandidateCatalog.create(
@@ -168,7 +168,7 @@ class GeneticEngineTest {
 
     @Test
     void noCandidateProducesOnlyTheUnassignedGeneAndAnUnresolvedReason() {
-        ScheduleDemand outside = ScheduleTestFixtures.withWindow(demand(1), 0, 60, 60);
+        ScheduleDemand outside = ScheduleTestFixtures.withWindow(demand(1), 0, 60, 1);
         ScheduleProblem problem = new ScheduleProblem(List.of(outside), List.of(lab(1)));
 
         SchedulePlan plan = engine.schedule(problem, smallParameters().build());
@@ -188,13 +188,13 @@ class GeneticEngineTest {
     private static ScheduleProblem injectionProblem() {
         ScheduleDemand longLowCredit = ScheduleTestFixtures.withCredit(
                 ScheduleTestFixtures.withWindow(
-                        demand(1, 1, CREATED_AT, ReservationMode.ROOM, 60), 0, 120, 60), 10);
+                        demand(1, 1, CREATED_AT, ReservationMode.ROOM, 2), 510, 705, 2), 10);
         ScheduleDemand shortHighCredit1 = ScheduleTestFixtures.withCredit(
                 ScheduleTestFixtures.withWindow(
-                        demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.ROOM, 30), 0, 120, 30), 100);
+                        demand(2, 2, CREATED_AT.plusMinutes(1), ReservationMode.ROOM, 1), 510, 705, 1), 100);
         ScheduleDemand shortHighCredit2 = ScheduleTestFixtures.withCredit(
                 ScheduleTestFixtures.withWindow(
-                        demand(3, 3, CREATED_AT.plusMinutes(2), ReservationMode.ROOM, 30), 0, 120, 30), 100);
+                        demand(3, 3, CREATED_AT.plusMinutes(2), ReservationMode.ROOM, 1), 510, 705, 1), 100);
         return new ScheduleProblem(
                 List.of(longLowCredit, shortHighCredit1, shortHighCredit2),
                 List.of(lab(1, 20, mask(0, 2), 0, lab(1).seats())));

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { SlotAvailability } from '../types'
+import { DEFAULT_MAX_PERIODS } from '../periods'
 import { today } from '../utils'
 
 export interface SlotRange { start: number; end: number }
@@ -10,30 +11,42 @@ const props = withDefaults(defineProps<{
   modelValue?: SlotRange | null
   mode?: 'ROOM' | 'SEAT'
   disabled?: boolean
-  openTime?: string
-  closeTime?: string
   date?: string
-}>(), { modelValue: null, mode: 'ROOM', disabled: false, openTime: '00:00', closeTime: '24:00', date: '' })
+  maxPeriods?: number
+}>(), { modelValue: null, mode: 'ROOM', disabled: false, date: '', maxPeriods: DEFAULT_MAX_PERIODS })
 
 const emit = defineEmits<{ 'update:modelValue': [value: SlotRange | null] }>()
 const conflict = ref<number[]>([])
 const message = ref('')
 const buttons = ref<HTMLButtonElement[]>([])
 
-const minute = (value: string, end = false) => {
-  if (end && value.startsWith('24:00')) return 1440
+const sessionName: Record<string, string> = { MORNING: '上午', AFTERNOON: '下午', EVENING: '晚上' }
+const sessionOrder = ['MORNING', 'AFTERNOON', 'EVENING']
+
+function minute(value: string) {
   const [hours, minutes] = value.split(':').map(Number)
   return hours * 60 + minutes
 }
 
-const openStart = computed(() => minute(props.openTime))
-const openEnd = computed(() => minute(props.closeTime, true))
-const bandMeta = [
-  { name: '凌晨', range: '00:00–06:00' },
-  { name: '上午', range: '06:00–12:00' },
-  { name: '下午', range: '12:00–18:00' },
-  { name: '晚间', range: '18:00–24:00' },
-]
+const bands = computed(() => {
+  const grouped = new Map<string, SlotAvailability[]>()
+  for (const slot of props.slots) {
+    const key = slot.session || 'MORNING'
+    const items = grouped.get(key) ?? []
+    items.push(slot)
+    grouped.set(key, items)
+  }
+  return sessionOrder.filter((key) => grouped.has(key)).map((key) => {
+    const slots = grouped.get(key) ?? []
+    return {
+      key,
+      name: sessionName[key] || key,
+      range: slots.length ? `${slots[0].start}–${slots[slots.length - 1].end}` : '',
+      slots,
+    }
+  })
+})
+
 const now = ref({ period: -1, top: '0%', label: '' })
 let clock: ReturnType<typeof setInterval> | undefined
 function placeNow() {
@@ -43,24 +56,27 @@ function placeNow() {
   }
   const current = new Date()
   const mins = current.getHours() * 60 + current.getMinutes()
-  const period = Math.min(3, Math.floor(mins / 360))
-  const fraction = (mins % 360) / 360
+  const period = bands.value.findIndex((band) => {
+    if (!band.slots.length) return false
+    return mins >= minute(band.slots[0].start) && mins < minute(band.slots[band.slots.length - 1].end)
+  })
+  if (period < 0) {
+    now.value = { period: -1, top: '0%', label: '' }
+    return
+  }
+  const band = bands.value[period]
+  const start = minute(band.slots[0].start)
+  const end = minute(band.slots[band.slots.length - 1].end)
+  const fraction = end <= start ? 0 : (mins - start) / (end - start)
   now.value = {
     period,
     top: `calc(48px + (100% - 48px) * ${fraction})`,
     label: `${String(current.getHours()).padStart(2, '0')}:${String(current.getMinutes()).padStart(2, '0')}`,
   }
 }
-const bands = computed(() => {
-  const rows = Math.ceil(props.slots.length / 12)
-  return Array.from({ length: rows }, (_, row) => ({
-    ...(bandMeta[row] || { name: '', range: '' }),
-    slots: props.slots.slice(row * 12, row * 12 + 12),
-  }))
-})
 
-function isOpen(index: number) {
-  return index * 30 >= openStart.value && (index + 1) * 30 <= openEnd.value
+function isOpen(slot: SlotAvailability) {
+  return slot.bookable
 }
 
 function isOccupied(slot: SlotAvailability) {
@@ -70,8 +86,8 @@ function isOccupied(slot: SlotAvailability) {
 function stateClass(slot: SlotAvailability) {
   const selected = props.modelValue && slot.index >= props.modelValue.start && slot.index <= props.modelValue.end
   return {
-    'cell--closed': !isOpen(slot.index),
-    'cell--occupied': isOpen(slot.index) && isOccupied(slot),
+    'cell--closed': !isOpen(slot),
+    'cell--occupied': isOpen(slot) && isOccupied(slot),
     'cell--selected': selected,
     'cell--conflict': conflict.value.includes(slot.index),
   }
@@ -80,36 +96,44 @@ function stateClass(slot: SlotAvailability) {
 function selectSlot(index: number) {
   conflict.value = []
   message.value = ''
-  if (props.disabled || !isOpen(index)) {
-    message.value = '该时段不在开放范围内'
+  const slot = props.slots.find((item) => item.index === index)
+  if (props.disabled || !slot || !isOpen(slot)) {
+    message.value = '该节次不在开放范围内'
     return
   }
   const start = props.modelValue?.start ?? index
   const from = Math.min(start, index)
   const to = Math.max(start, index)
-  if (to - from + 1 > 8) {
-    message.value = '连续选择最多8个时间片（4小时）'
+  if (to - from + 1 > props.maxPeriods) {
+    message.value = `连续选择最多${props.maxPeriods}节`
     conflict.value = Array.from({ length: to - from + 1 }, (_, offset) => from + offset)
     return
   }
-  const blocked = props.slots.filter((slot) => slot.index >= from && slot.index <= to && (!isOpen(slot.index) || isOccupied(slot)))
+  const blocked = props.slots.filter((item) => item.index >= from && item.index <= to && (!isOpen(item) || isOccupied(item)))
   if (blocked.length) {
-    conflict.value = blocked.map((slot) => slot.index)
-    message.value = '所选连续时段包含已占用时间片，请重新选择'
+    conflict.value = blocked.map((item) => item.index)
+    message.value = '所选连续节次包含未开放或已占用的节，请重新选择'
     return
   }
   emit('update:modelValue', { start: from, end: to })
 }
 
 function moveFocus(event: KeyboardEvent, index: number) {
-  const offsets: Record<string, number> = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -12, ArrowRight: 12 }
-  const offset = offsets[event.key]
-  if (!offset) return
+  const bandIndex = bands.value.findIndex((band) => band.slots.some((slot) => slot.index === index))
+  const band = bands.value[bandIndex]
+  if (!band) return
+  const row = band.slots.findIndex((slot) => slot.index === index)
+  const target = event.key === 'ArrowUp' || event.key === 'ArrowDown'
+    ? band.slots[row + (event.key === 'ArrowUp' ? -1 : 1)]
+    : event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+      ? bands.value[bandIndex + (event.key === 'ArrowLeft' ? -1 : 1)]?.slots[row]
+      : undefined
+  if (!target) return
   event.preventDefault()
-  const next = Math.max(0, Math.min(props.slots.length - 1, index + offset))
-  buttons.value[next]?.focus()
+  buttons.value[target.index]?.focus()
 }
 watch(() => props.date, placeNow)
+watch(bands, placeNow)
 watch(() => props.modelValue, (value) => {
   if (!value) {
     conflict.value = []
@@ -126,8 +150,8 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
 <template>
   <div class="slot-grid-wrap">
     <p v-if="message" class="slot-message" role="alert">{{ message }}</p>
-    <div v-if="slots.length" class="periods" role="group" aria-label="48格预约时间尺，每格30分钟。上下键在同一时段内移动，左右键切换凌晨、上午、下午、晚间">
-      <div v-for="(band, bandIndex) in bands" :key="band.range || band.name" class="period">
+    <div v-if="slots.length" class="periods" role="group" aria-label="按节次预约。上下键在同一时段内移动，左右键切换上午、下午、晚上">
+      <div v-for="(band, bandIndex) in bands" :key="band.key" class="period">
         <div class="period-h"><b>{{ band.name }}</b>{{ band.range }}</div>
         <div class="slots">
           <button
@@ -139,13 +163,13 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
             :class="stateClass(slot)"
             :disabled="disabled"
             :aria-pressed="Boolean(modelValue && slot.index >= modelValue.start && slot.index <= modelValue.end)"
-            :aria-label="`${slot.start}至${slot.end}，${!isOpen(slot.index) ? '未开放' : isOccupied(slot) ? '已占用' : '可预约'}${mode === 'SEAT' && isOpen(slot.index) ? `，余${slot.availableSeatCount}个工位` : ''}`"
-            :title="`${slot.start}–${slot.end} · ${!isOpen(slot.index) ? '未开放' : mode === 'SEAT' ? `余${slot.availableSeatCount}工位` : slot.roomOccupied ? '整室占用' : '整室可用'}`"
+            :aria-label="`第${slot.periodNo}节 ${slot.start}至${slot.end}，${!isOpen(slot) ? '未开放' : isOccupied(slot) ? '已占用' : '可预约'}${mode === 'SEAT' && isOpen(slot) ? `，余${slot.availableSeatCount}个工位` : ''}`"
+            :title="`第${slot.periodNo}节 ${slot.start}–${slot.end} · ${!isOpen(slot) ? '未开放' : mode === 'SEAT' ? `余${slot.availableSeatCount}工位` : slot.roomOccupied ? '整室占用' : '整室可用'}`"
             @click="selectSlot(slot.index)"
             @keydown="moveFocus($event, slot.index)"
           >
-            <span v-if="isOpen(slot.index)">{{ slot.start }}</span>
-            <span v-if="mode === 'SEAT' && isOpen(slot.index) && !isOccupied(slot)" class="cell__count">{{ slot.availableSeatCount }}</span>
+            <span>第{{ slot.periodNo }}节 {{ slot.start }}</span>
+            <span v-if="mode === 'SEAT' && isOpen(slot) && !isOccupied(slot)" class="cell__count">{{ slot.availableSeatCount }}</span>
           </button>
         </div>
         <div v-if="now.period === bandIndex" class="now-line" :style="{ top: now.top }"><span>{{ now.label }}</span></div>

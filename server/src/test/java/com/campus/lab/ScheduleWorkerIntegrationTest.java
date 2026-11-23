@@ -50,7 +50,7 @@ class ScheduleWorkerIntegrationTest extends AbstractScheduleIntegrationTest {
         long pendingUserId = userIdByAccount(createTestAccount("STUDENT"));
         long fixedUserId = userIdByAccount(createTestAccount("STUDENT"));
         long pendingId = createPending(pendingUserId, labId, DATE);
-        long fixedId = createFixed(fixedUserId, labId, DATE, "08:00", "09:00");
+        long fixedId = createFixed(fixedUserId, labId, DATE, "08:30", "09:15");
 
         scheduleService.runBatch(DATE);
 

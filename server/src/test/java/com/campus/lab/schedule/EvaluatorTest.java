@@ -23,7 +23,7 @@ class EvaluatorTest {
     void actualSecondStageSeatsDriveSuccessAndBothSoftPreferenceMismatches() {
         ScheduleDemand preferred = ScheduleTestFixtures.withPreferences(demand(1), "A", true);
         ScheduleDemand noLongerFits = demand(2);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 18), 0,
+        ScheduleLabResource resource = lab(1, 20, mask(0, 2), 0,
                 List.of(seat(11, 1, "STANDARD", "B", false, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(preferred, noLongerFits), List.of(resource));
         SchedulePlan firstStage = new FcfsEngine().schedule(problem, parameters);
@@ -43,7 +43,7 @@ class EvaluatorTest {
     void zoneMismatchIsCountedOncePerAllocatedSeat() {
         ScheduleDemand demand = ScheduleTestFixtures.withCapacityNeeds(
                 ScheduleTestFixtures.withPreferences(demand(1), "A", false), 2, 2);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 18), 0, List.of(
+        ScheduleLabResource resource = lab(1, 20, mask(0, 2), 0, List.of(
                 seat(1, 1, "STANDARD", "A", false, 0),
                 seat(2, 2, "STANDARD", "B", true, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(demand), List.of(resource));
@@ -61,7 +61,7 @@ class EvaluatorTest {
     void mismatchDenominatorIncludesAllocatedSeatsWithoutPreferences() {
         ScheduleDemand zoneMismatch = ScheduleTestFixtures.withPreferences(demand(1), "A", false);
         ScheduleDemand noPreference = demand(2);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 20), 0, List.of(
+        ScheduleLabResource resource = lab(1, 20, mask(0, 4), 0, List.of(
                 seat(1, 1, "STANDARD", "B", false, 0),
                 seat(2, 2, "STANDARD", "B", true, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(zoneMismatch, noPreference), List.of(resource));
@@ -81,7 +81,7 @@ class EvaluatorTest {
     void zoneAndWindowMismatchOnTheSameSeatCountsAsOneMismatchSeat() {
         ScheduleDemand doubleMismatch = ScheduleTestFixtures.withPreferences(demand(1), "A", true);
         ScheduleDemand noPreference = demand(2);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 20), 0, List.of(
+        ScheduleLabResource resource = lab(1, 20, mask(0, 4), 0, List.of(
                 seat(1, 1, "STANDARD", "B", false, 0),
                 seat(2, 2, "STANDARD", "B", false, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(doubleMismatch, noPreference), List.of(resource));
@@ -101,8 +101,8 @@ class EvaluatorTest {
 
     @Test
     void utilizationIncludesFixedAndNewOccupancyInTheGlobalDenominator() {
-        ScheduleLabResource resource = lab(1, 20, mask(16, 20), 0, List.of(
-                seat(1, 1, "STANDARD", "A", true, mask(16, 18)),
+        ScheduleLabResource resource = lab(1, 20, mask(0, 4), 0, List.of(
+                seat(1, 1, "STANDARD", "A", true, mask(0, 2)),
                 seat(2, 2, "STANDARD", "A", true, 0)));
         ScheduleProblem problem = new ScheduleProblem(List.of(demand(1)), List.of(resource));
         ScheduleSeatingPlan seated = new ScheduleSeatingService().allocate(
@@ -117,8 +117,8 @@ class EvaluatorTest {
 
     @Test
     void roomUtilizationOccupiesEveryActiveSeatForTheWholeRoomInterval() {
-        ScheduleDemand room = demand(1, 1, CREATED_AT, ReservationMode.ROOM, 60);
-        ScheduleLabResource resource = lab(1, 20, mask(16, 18), 0, List.of(
+        ScheduleDemand room = demand(1, 1, CREATED_AT, ReservationMode.ROOM, 2);
+        ScheduleLabResource resource = lab(1, 20, mask(0, 2), 0, List.of(
                 seat(1, 1, "STANDARD", "A", true, 0),
                 seat(2, 2, "STANDARD", "A", true, ResourceStatus.DISABLED, 0),
                 seat(3, 3, "STANDARD", "B", false, 0)));
@@ -136,13 +136,13 @@ class EvaluatorTest {
     void fragmentationIsShortFreeSlotsDividedByAllFreeSlotsUsingEffectiveMinimum() {
         ScheduleLabResource resource = ScheduleTestFixtures.withRule(
                 lab(1, 20, mask(0, 4), 0,
-                        List.of(seat(1, 1, "STANDARD", "A", true, mask(2, 3)))), 60, 240);
+                        List.of(seat(1, 1, "STANDARD", "A", true, mask(2, 3)))), 2, 5);
         ScheduleProblem problem = new ScheduleProblem(List.of(), List.of(resource));
         ScheduleSeatingPlan empty = new ScheduleSeatingPlan(List.of(), Map.of());
 
         EvaluationResult sixtyMinuteMinimum = new Evaluator().evaluate(problem, empty, 0, 0);
         ScheduleProblem thirtyMinuteMinimum = new ScheduleProblem(List.of(),
-                List.of(ScheduleTestFixtures.withRule(resource, 30, 240)));
+                List.of(ScheduleTestFixtures.withRule(resource, 1, 5)));
         EvaluationResult defaultMinimum = new Evaluator().evaluate(thirtyMinuteMinimum, empty, 0, 0);
 
         assertThat(sixtyMinuteMinimum.timeFragmentationRate())
@@ -166,7 +166,7 @@ class EvaluatorTest {
     @Test
     void emptyDemandAndZeroAvailableSeatTimeProduceZeroRatherThanInventedRates() {
         ScheduleProblem problem = new ScheduleProblem(List.of(),
-                List.of(lab(1, 20, mask(16, 18), 0, List.of())));
+                List.of(lab(1, 20, mask(0, 2), 0, List.of())));
 
         EvaluationResult result = new Evaluator().evaluate(
                 problem, new ScheduleSeatingPlan(List.of(), Map.of()), 3, 4);

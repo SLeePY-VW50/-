@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import http, { errorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import type { Lab, Page, Reservation } from '../types'
+import { PERIOD_ENDS, PERIOD_STARTS } from '../periods'
 import { addDays, formatDateTime, reservationTime, statusLabels, timeOnly, today } from '../utils'
 import EmptyState from '../components/EmptyState.vue'
 
@@ -26,9 +27,9 @@ const cancelReason = ref('')
 const actionLoading = ref(false)
 const batchVisible = ref(false)
 const batchError = ref('')
-const batch = reactive({ courseName: '', labId: null as number | null, attendeeCount: 1, purpose: '', items: [{ date: addDays(today(), 1), startTime: '09:00', endTime: '11:00' }] })
-const startOptions = Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
-const endOptions = [...startOptions.slice(1), '24:00']
+const batch = reactive({ courseName: '', labId: null as number | null, attendeeCount: 1, purpose: '', items: [{ date: addDays(today(), 1), startTime: '09:15', endTime: '11:45' }] })
+const startOptions = PERIOD_STARTS
+const endOptions = PERIOD_ENDS
 const statuses = ['PENDING_SCHEDULE', 'APPROVED', 'IN_USE', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'EXPIRED', 'VIOLATION_TERMINATED']
 
 async function load() {

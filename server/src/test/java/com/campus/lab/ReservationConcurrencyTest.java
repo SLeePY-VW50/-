@@ -101,7 +101,7 @@ class ReservationConcurrencyTest extends AbstractReservationNonTransactionalTest
                 WHERE r.lab_id = ? AND l.from_status IS NULL AND l.to_status = 'APPROVED'
                 """, Integer.class, labId)).isEqualTo(20);
 
-        long expectedMask = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         Map<Long, Long> bitmapMasks = bitmapMasks(labId);
         Map<Long, Long> assignmentMasks = assignmentMasks(labId);
         assertThat(bitmapMasks).hasSize(20);
@@ -174,7 +174,7 @@ class ReservationConcurrencyTest extends AbstractReservationNonTransactionalTest
 
     private CreateReservationRequest fixedRequest(long labId) {
         return new CreateReservationRequest(
-                AllocationMode.FIXED, labId, DATE, "09:00", "10:00",
+                AllocationMode.FIXED, labId, DATE, "09:15", "10:00",
                 null, null, null, ReservationMode.SEAT, 1, 1,
                 "真实并发测试", ReservationPreferences.empty());
     }

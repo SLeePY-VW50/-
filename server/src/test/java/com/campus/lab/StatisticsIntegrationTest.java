@@ -45,25 +45,25 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
     @Test
     void dailyStatisticsUseOriginalAssignmentsAndActualCheckinIntervalsAndUpsertIdempotently()
             throws Exception {
-        Fixture fixture = fixture(3, "08:00", "12:00");
+        Fixture fixture = fixture(3, "08:30", "12:30");
         jdbcTemplate.update("UPDATE t_lab_seat SET seat_status = 'DISABLED' WHERE seat_id = ?",
                 fixture.seatIds().get(2));
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        long early = reservation(userId, fixture.labId(), DATE, "08:00", "10:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "提前签退", fixture.seatIds().get(0));
-        reservation(userId, fixture.labId(), DATE, "09:00", "10:00", "SEAT",
-                "COMPLETED", "09:00", "10:00", "正常到点", fixture.seatIds().get(1));
-        reservation(userId, fixture.labId(), DATE, "10:00", "11:00", "ROOM",
-                "COMPLETED", "10:00", "10:30", "整室提前签退", null);
-        reservation(userId, fixture.labId(), DATE, "11:00", "12:00", "SEAT",
+        long early = reservation(userId, fixture.labId(), DATE, "08:30", "10:00", "SEAT",
+                "COMPLETED", "08:30", "09:15", "提前签退", fixture.seatIds().get(0));
+        reservation(userId, fixture.labId(), DATE, "09:15", "10:00", "SEAT",
+                "COMPLETED", "09:15", "10:00", "正常到点", fixture.seatIds().get(1));
+        reservation(userId, fixture.labId(), DATE, "10:05", "11:45", "ROOM",
+                "COMPLETED", "10:05", "10:50", "整室提前签退", null);
+        reservation(userId, fixture.labId(), DATE, "11:00", "12:30", "SEAT",
                 "NO_SHOW", null, null, "爽约", fixture.seatIds().get(0));
-        reservation(userId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "CANCELLED", "08:00", "08:30", "取消不计使用", fixture.seatIds().get(1));
+        reservation(userId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "CANCELLED", "08:30", "09:15", "取消不计使用", fixture.seatIds().get(1));
         pending(userId, DATE, "PENDING_SCHEDULE");
 
         refreshDaily();
 
-        assertDailyMetric(fixture.labId(), 0.75, 0.375, 0.2, 5);
+        assertDailyMetric(fixture.labId(), 0.9, 0.4, 0.2, 5);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_stat_daily WHERE lab_id = ? AND stat_date = ?",
                 Integer.class, fixture.labId(), DATE)).isOne();
@@ -75,21 +75,21 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("UPDATE t_reservation SET checkout_time = '2026-10-23 08:30:00' " +
                 "WHERE resv_id = ?", early);
         refreshDaily();
-        assertDailyMetric(fixture.labId(), 0.75, 0.3125, 0.2, 5);
+        assertDailyMetric(fixture.labId(), 0.9, 0.3, 0.2, 5);
     }
 
     @Test
     void heatmapReturnsEverySlotWithMeasuredRoomAndSeatRatiosAndEnforcesRangeAndRoles()
             throws Exception {
-        Fixture fixture = fixture(2, "08:00", "12:00");
+        Fixture fixture = fixture(2, "08:30", "12:30");
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(userId, fixture.labId(), DATE, "08:00", "10:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "提前签退", fixture.seatIds().get(0));
-        reservation(userId, fixture.labId(), DATE, "09:00", "10:00", "SEAT",
-                "COMPLETED", "09:00", "10:00", "正常到点", fixture.seatIds().get(1));
-        reservation(userId, fixture.labId(), DATE, "10:00", "11:00", "ROOM",
-                "COMPLETED", "10:00", "10:30", "整室", null);
-        reservation(userId, fixture.labId(), DATE, "11:00", "12:00", "SEAT",
+        reservation(userId, fixture.labId(), DATE, "08:30", "10:00", "SEAT",
+                "COMPLETED", "08:30", "09:15", "提前签退", fixture.seatIds().get(0));
+        reservation(userId, fixture.labId(), DATE, "09:15", "10:00", "SEAT",
+                "COMPLETED", "09:15", "10:00", "正常到点", fixture.seatIds().get(1));
+        reservation(userId, fixture.labId(), DATE, "10:05", "11:45", "ROOM",
+                "COMPLETED", "10:05", "10:50", "整室", null);
+        reservation(userId, fixture.labId(), DATE, "11:00", "12:30", "SEAT",
                 "NO_SHOW", null, null, "爽约", fixture.seatIds().get(0));
         String teacher = loginAndGetToken("T1001", "Lab@2026");
 
@@ -99,12 +99,11 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
         JsonNode day = body.path("data").get(0);
         assertThat(day.path("labId").asLong()).isEqualTo(fixture.labId());
         assertThat(day.path("date").asText()).isEqualTo(DATE.toString());
-        assertThat(day.path("slots")).hasSize(48);
-        assertSlot(day, 0, "00:00", "00:30", 0, 0);
-        assertSlot(day, 16, "08:00", "08:30", 0.5, 0.5);
-        assertSlot(day, 18, "09:00", "09:30", 1.0, 0.5);
-        assertSlot(day, 20, "10:00", "10:30", 1.0, 1.0);
-        assertSlot(day, 22, "11:00", "11:30", 0.5, 0);
+        assertThat(day.path("slots")).hasSize(13);
+        assertSlot(day, 0, "08:30", "09:15", 0.5, 0.5);
+        assertSlot(day, 1, "09:15", "10:00", 1.0, 0.5);
+        assertSlot(day, 2, "10:05", "10:50", 1.0, 1.0);
+        assertSlot(day, 12, "20:05", "20:50", 0, 0);
 
         String student = loginAndGetToken("20240001", "Lab@2026");
         mockMvc.perform(get("/api/statistics/heatmap")
@@ -126,16 +125,16 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void dashboardScopesPersonalFactsAndTrendWhileAdminsSeeGlobalCounts() throws Exception {
-        Fixture fixture = fixture(2, "08:00", "12:00");
+        Fixture fixture = fixture(2, "08:30", "12:30");
         String ownerAccount = createTestAccount("STUDENT");
         long ownerId = userIdByAccount(ownerAccount);
         jdbcTemplate.update("UPDATE sys_user SET credit_score = 73 WHERE user_id = ?", ownerId);
         long otherId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(ownerId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "本人", fixture.seatIds().get(0));
+        reservation(ownerId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "本人", fixture.seatIds().get(0));
         pending(ownerId, DATE, "PENDING_SCHEDULE");
-        reservation(otherId, fixture.labId(), DATE, "09:00", "10:00", "SEAT",
-                "COMPLETED", "09:00", "10:00", "他人", fixture.seatIds().get(0));
+        reservation(otherId, fixture.labId(), DATE, "09:15", "10:00", "SEAT",
+                "COMPLETED", "09:15", "10:00", "他人", fixture.seatIds().get(0));
         String owner = loginAndGetToken(ownerAccount, "Lab@2026");
 
         MvcResult personal = mockMvc.perform(get("/api/statistics/dashboard")
@@ -148,8 +147,8 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
         assertThat(data.path("reservationCount").asInt()).isEqualTo(2);
         assertThat(data.path("pendingScheduleCount").asInt()).isOne();
         assertThat(data.path("inUseCount").asInt()).isZero();
-        assertThat(data.path("plannedUtilization").asDouble()).isCloseTo(0.125, within(0.000001));
-        assertThat(data.path("actualUtilization").asDouble()).isCloseTo(0.125, within(0.000001));
+        assertThat(data.path("plannedUtilization").asDouble()).isCloseTo(0.1, within(0.000001));
+        assertThat(data.path("actualUtilization").asDouble()).isCloseTo(0.1, within(0.000001));
         assertThat(data.path("creditScore").asInt()).isEqualTo(73);
         assertThat(data.path("trend")).hasSize(7);
         assertThat(data.path("trend").get(6).path("reservationCount").asInt()).isEqualTo(2);
@@ -182,23 +181,23 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void csvHasBomRealOwnershipFiltersAndFormulaEscaping() throws Exception {
-        Fixture first = fixture(1, "08:00", "12:00");
-        Fixture second = fixture(1, "08:00", "12:00");
+        Fixture first = fixture(1, "08:30", "12:30");
+        Fixture second = fixture(1, "08:30", "12:30");
         String ownerAccount = createTestAccount("STUDENT");
         long ownerId = userIdByAccount(ownerAccount);
         long otherId = userIdByAccount(createTestAccount("STUDENT"));
         long[] owned = new long[4];
         String[] purposes = {"=2+3", "+formula", "-formula", "@formula"};
         for (int index = 0; index < purposes.length; index++) {
-            owned[index] = reservation(ownerId, first.labId(), DATE, "08:00", "09:00", "SEAT",
-                    "COMPLETED", "08:00", "09:00", purposes[index], first.seatIds().get(0));
+            owned[index] = reservation(ownerId, first.labId(), DATE, "08:30", "09:15", "SEAT",
+                    "COMPLETED", "08:30", "09:15", purposes[index], first.seatIds().get(0));
         }
-        long other = reservation(otherId, first.labId(), DATE, "09:00", "10:00", "SEAT",
-                "COMPLETED", "09:00", "10:00", "他人记录", first.seatIds().get(0));
-        long otherLab = reservation(ownerId, second.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "其他实验室", second.seatIds().get(0));
-        long outside = reservation(ownerId, first.labId(), DATE.minusDays(1), "08:00", "09:00",
-                "SEAT", "COMPLETED", "08:00", "09:00", "范围外", first.seatIds().get(0));
+        long other = reservation(otherId, first.labId(), DATE, "09:15", "10:00", "SEAT",
+                "COMPLETED", "09:15", "10:00", "他人记录", first.seatIds().get(0));
+        long otherLab = reservation(ownerId, second.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "其他实验室", second.seatIds().get(0));
+        long outside = reservation(ownerId, first.labId(), DATE.minusDays(1), "08:30", "09:15",
+                "SEAT", "COMPLETED", "08:30", "09:15", "范围外", first.seatIds().get(0));
         String owner = loginAndGetToken(ownerAccount, "Lab@2026");
 
         MvcResult result = mockMvc.perform(get("/api/statistics/reservations.csv")
@@ -237,12 +236,12 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void disabledAssignedSeatsAndLaterSeatChangesCannotRewriteDailyHistory() throws Exception {
-        Fixture fixture = fixture(2, "08:00", "10:00");
+        Fixture fixture = fixture(2, "08:30", "10:00");
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(userId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "历史工位", fixture.seatIds().get(0));
-        reservation(userId, fixture.labId(), DATE, "09:00", "10:00", "ROOM",
-                "COMPLETED", "09:00", "10:00", "历史整室", null);
+        reservation(userId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "历史工位", fixture.seatIds().get(0));
+        reservation(userId, fixture.labId(), DATE, "09:15", "10:00", "ROOM",
+                "COMPLETED", "09:15", "10:00", "历史整室", null);
         refreshDaily(fixture.labId(), DATE);
 
         jdbcTemplate.update("UPDATE t_lab_seat SET seat_status = 'DISABLED' WHERE seat_id = ?",
@@ -269,10 +268,10 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
                 .isCloseTo(0.75, within(0.000001));
         assertThat(((Number) historical.get("actual_utilization")).doubleValue())
                 .isCloseTo(0.75, within(0.000001));
-        assertThat(((Number) historical.get("available_seat_minutes")).longValue()).isEqualTo(240);
+        assertThat(((Number) historical.get("available_seat_minutes")).longValue()).isEqualTo(180);
 
-        reservation(userId, fixture.labId(), DATE.plusDays(1), "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "未固化停用工位", fixture.seatIds().get(0));
+        reservation(userId, fixture.labId(), DATE.plusDays(1), "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "未固化停用工位", fixture.seatIds().get(0));
         refreshDaily(fixture.labId(), DATE.plusDays(1));
         Map<String, Object> uncached = jdbcTemplate.queryForMap("""
                 SELECT planned_utilization, actual_utilization FROM t_stat_daily
@@ -287,14 +286,14 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
     @Test
     void personalDashboardUsesEachDaysOwnLaboratorySetInsteadOfWeekCartesianProduct()
             throws Exception {
-        Fixture yesterdayLab = fixture(1, "08:00", "10:00");
-        Fixture todayLab = fixture(3, "08:00", "10:00");
+        Fixture yesterdayLab = fixture(1, "08:30", "10:00");
+        Fixture todayLab = fixture(3, "08:30", "10:00");
         String account = createTestAccount("STUDENT");
         long userId = userIdByAccount(account);
-        reservation(userId, yesterdayLab.labId(), TODAY.minusDays(1), "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "昨天A", yesterdayLab.seatIds().get(0));
-        reservation(userId, todayLab.labId(), TODAY, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "今天B", todayLab.seatIds().get(0));
+        reservation(userId, yesterdayLab.labId(), TODAY.minusDays(1), "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "昨天A", yesterdayLab.seatIds().get(0));
+        reservation(userId, todayLab.labId(), TODAY, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "今天B", todayLab.seatIds().get(0));
         String token = loginAndGetToken(account, "Lab@2026");
 
         JsonNode data = responseJson(mockMvc.perform(get("/api/statistics/dashboard")
@@ -313,14 +312,14 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void csvStripsLeadingControlsBeforeFormulaDetectionAndCannotInjectRows() throws Exception {
-        Fixture fixture = fixture(1, "08:00", "12:00");
+        Fixture fixture = fixture(1, "08:30", "12:30");
         String account = createTestAccount("STUDENT");
         long userId = userIdByAccount(account);
         List<String> purposes = List.of(
                 "\t=2+3", "\r+formula", "\n-formula", "\t\r\n@formula", "普通中文内容");
         for (String purpose : purposes) {
-            reservation(userId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                    "COMPLETED", "08:00", "09:00", purpose, fixture.seatIds().get(0));
+            reservation(userId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                    "COMPLETED", "08:30", "09:15", purpose, fixture.seatIds().get(0));
         }
         String token = loginAndGetToken(account, "Lab@2026");
 
@@ -338,13 +337,13 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void scheduledBatchSharesFactsIsolatesFailureAndBackfillsOnNextRun() throws Exception {
-        Fixture failedLab = fixture(1, "08:00", "12:00");
-        Fixture followingLab = fixture(1, "08:00", "12:00");
+        Fixture failedLab = fixture(1, "08:30", "12:30");
+        Fixture followingLab = fixture(1, "08:30", "12:30");
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(userId, failedLab.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "失败后补算", failedLab.seatIds().get(0));
-        reservation(userId, followingLab.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "后续实验室", followingLab.seatIds().get(0));
+        reservation(userId, failedLab.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "失败后补算", failedLab.seatIds().get(0));
+        reservation(userId, followingLab.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "后续实验室", followingLab.seatIds().get(0));
         java.util.concurrent.atomic.AtomicBoolean fail = new java.util.concurrent.atomic.AtomicBoolean(true);
         org.mockito.Mockito.doAnswer(invocation -> {
             String sql = invocation.getArgument(0);
@@ -396,10 +395,10 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void scheduledBatchBackfillsInteriorMissingDateBehindLaterHighWater() throws Exception {
-        Fixture fixture = fixture(1, "08:00", "12:00");
+        Fixture fixture = fixture(1, "08:30", "12:30");
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(userId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "中间缺失补算", fixture.seatIds().get(0));
+        reservation(userId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "中间缺失补算", fixture.seatIds().get(0));
         refreshDaily();
         org.mockito.Mockito.doReturn(java.time.Instant.parse("2026-10-24T16:00:00Z"))
                 .when(clock).instant();
@@ -419,12 +418,12 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void dailyBaselineUsesOnlySeatsActiveOrAssignedOnThatDate() {
-        Fixture fixture = fixture(2, "08:00", "10:00");
+        Fixture fixture = fixture(2, "08:30", "10:00");
         jdbcTemplate.update("UPDATE t_lab_seat SET seat_status = 'DISABLED' WHERE seat_id = ?",
                 fixture.seatIds().get(1));
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(userId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "D1停用工位", fixture.seatIds().get(1));
+        reservation(userId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "D1停用工位", fixture.seatIds().get(1));
         var service = applicationContext.getBean(com.campus.lab.statistics.StatisticsService.class);
 
         service.refreshDailyBatch(List.of(
@@ -434,15 +433,15 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT available_seat_minutes FROM t_stat_daily WHERE lab_id = ? AND stat_date = ?
-                """, Long.class, fixture.labId(), DATE)).isEqualTo(240);
+                """, Long.class, fixture.labId(), DATE)).isEqualTo(180);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT available_seat_minutes FROM t_stat_daily WHERE lab_id = ? AND stat_date = ?
-                """, Long.class, fixture.labId(), DATE.plusDays(1))).isEqualTo(120);
+                """, Long.class, fixture.labId(), DATE.plusDays(1))).isEqualTo(90);
     }
 
     @Test
     void scheduledBatchBackfillsZeroReservationGapBetweenActivityDates() throws Exception {
-        Fixture fixture = fixture(1, "08:00", "10:00");
+        Fixture fixture = fixture(1, "08:30", "10:00");
         LocalDate thirdDay = TODAY.plusDays(1);
         for (LocalDate date : List.of(DATE, thirdDay)) {
             jdbcTemplate.update("""
@@ -468,12 +467,12 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
         assertThat(((Number) gap.get("reservation_count")).intValue()).isZero();
         assertThat(((Number) gap.get("planned_utilization")).doubleValue()).isZero();
         assertThat(((Number) gap.get("actual_utilization")).doubleValue()).isZero();
-        assertThat(((Number) gap.get("available_seat_minutes")).longValue()).isEqualTo(120);
+        assertThat(((Number) gap.get("available_seat_minutes")).longValue()).isEqualTo(90);
     }
 
     @Test
     void multiYearBackfillLoadsFactsInBoundedThirtyOneDayChunks() throws Exception {
-        Fixture fixture = fixture(1, "08:00", "10:00");
+        Fixture fixture = fixture(1, "08:30", "10:00");
         LocalDate oldActivity = LocalDate.of(2020, 1, 1);
         jdbcTemplate.update("""
                 INSERT INTO t_stat_daily
@@ -498,16 +497,16 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
     @Test
     void personalDashboardBaselineIncludesOtherUsersAssignedSeatsBeforeAndAfterRefresh()
             throws Exception {
-        Fixture fixture = fixture(2, "08:00", "10:00");
+        Fixture fixture = fixture(2, "08:30", "10:00");
         jdbcTemplate.update("UPDATE t_lab_seat SET seat_status = 'DISABLED' WHERE seat_id = ?",
                 fixture.seatIds().get(1));
         String ownerAccount = createTestAccount("STUDENT");
         long ownerId = userIdByAccount(ownerAccount);
         long otherId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(otherId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "他人停用工位", fixture.seatIds().get(1));
-        reservation(ownerId, fixture.labId(), DATE, "08:00", "09:00", "SEAT",
-                "COMPLETED", "08:00", "09:00", "本人正常使用", fixture.seatIds().get(0));
+        reservation(otherId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "他人停用工位", fixture.seatIds().get(1));
+        reservation(ownerId, fixture.labId(), DATE, "08:30", "09:15", "SEAT",
+                "COMPLETED", "08:30", "09:15", "本人正常使用", fixture.seatIds().get(0));
         String token = loginAndGetToken(ownerAccount, "Lab@2026");
 
         JsonNode before = responseJson(mockMvc.perform(get("/api/statistics/dashboard")
@@ -521,7 +520,7 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
         refreshDaily(fixture.labId(), DATE);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT available_seat_minutes FROM t_stat_daily WHERE lab_id = ? AND stat_date = ?
-                """, Long.class, fixture.labId(), DATE)).isEqualTo(240);
+                """, Long.class, fixture.labId(), DATE)).isEqualTo(180);
         JsonNode after = responseJson(mockMvc.perform(get("/api/statistics/dashboard")
                         .queryParam("date", DATE.toString())
                         .header("Authorization", "Bearer " + token))
@@ -532,9 +531,9 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void currentTimeCapsCheckedInUsageAndDailyJobsHaveExpectedSchedule() throws Exception {
-        Fixture fixture = fixture(1, "06:00", "12:00");
+        Fixture fixture = fixture(1, "08:30", "12:30");
         long userId = userIdByAccount(createTestAccount("STUDENT"));
-        reservation(userId, fixture.labId(), TODAY, "06:00", "10:00", "SEAT",
+        reservation(userId, fixture.labId(), TODAY, "08:30", "10:00", "SEAT",
                 "IN_USE", "07:45", null, "当前仍在使用", fixture.seatIds().get(0));
 
         refreshDaily();
@@ -551,9 +550,8 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
                 WHERE lab_id = ? AND stat_date = ?
                 """, fixture.labId(), TODAY);
         assertThat(((Number) current.get("planned_utilization")).doubleValue())
-                .isCloseTo(2.0 / 3, within(0.000001));
-        assertThat(((Number) current.get("actual_utilization")).doubleValue())
-                .isCloseTo(15.0 / 360, within(0.000001));
+                .isCloseTo(90.0 / 225, within(0.000001));
+        assertThat(((Number) current.get("actual_utilization")).doubleValue()).isZero();
 
         Object jobs = applicationContext.getBean("statisticsScheduledJobs");
         var scheduled = jobs.getClass().getMethod("refreshDaily")
@@ -656,9 +654,8 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
         long reservationId = jdbcTemplate.queryForObject(
                 "SELECT MAX(resv_id) FROM t_reservation WHERE user_id = ?", Long.class, userId);
         if (seatId != null) {
-            int startSlot = java.time.LocalTime.parse(start).getHour() * 2;
-            int endSlot = java.time.LocalTime.parse(end).getHour() * 2;
-            long mask = ((1L << (endSlot - startSlot)) - 1) << startSlot;
+            long mask = com.campus.lab.period.DongfangPeriodTable.schedule().between(
+                    java.time.LocalTime.parse(start), java.time.LocalTime.parse(end)).value();
             jdbcTemplate.update("""
                     INSERT INTO t_reservation_seat
                         (resv_id, seat_id, time_mask, assignment_method)
@@ -674,7 +671,7 @@ class StatisticsIntegrationTest extends AbstractIntegrationTest {
                     (user_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
                      attendee_count, seat_count, purpose, status)
-                VALUES (?, 'SCHEDULABLE', 'SEAT', ?, '08:00:00', '09:00:00', 60,
+                VALUES (?, 'SCHEDULABLE', 'SEAT', ?, '08:30:00', '09:15:00', 45,
                         1, 1, '待排期', ?)
                 """, userId, date, status);
     }

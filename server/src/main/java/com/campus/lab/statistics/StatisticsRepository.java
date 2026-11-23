@@ -84,14 +84,17 @@ public class StatisticsRepository {
                     return values;
                 }, seatArguments.toArray());
         Map<LabDay, RuleRow> rules = jdbcTemplate.query("""
-                SELECT lab_id, day_of_week, open_time, close_time FROM t_time_rule
+                SELECT lab_id, day_of_week, open_time, close_time,
+                       open_start_period, open_end_period
+                FROM t_time_rule
                 WHERE lab_id IN (""" + placeholders + ") ORDER BY lab_id, day_of_week", rs -> {
                     Map<LabDay, RuleRow> values = new HashMap<>();
                     while (rs.next()) {
                         long lab = rs.getLong("lab_id");
                         int day = rs.getInt("day_of_week");
                         values.put(new LabDay(lab, day), new RuleRow(
-                                lab, day, rs.getString("open_time"), rs.getString("close_time")));
+                                lab, day, rs.getString("open_time"), rs.getString("close_time"),
+                                rs.getInt("open_start_period"), rs.getInt("open_end_period")));
                     }
                     return values;
                 }, labIds.toArray());
@@ -369,7 +372,9 @@ public class StatisticsRepository {
     public record SeatRow(long labId, long seatId, boolean active) {
     }
 
-    public record RuleRow(long labId, int dayOfWeek, String openTime, String closeTime) {
+    public record RuleRow(
+            long labId, int dayOfWeek, String openTime, String closeTime,
+            int openStartPeriod, int openEndPeriod) {
     }
 
     public record ReservationRow(

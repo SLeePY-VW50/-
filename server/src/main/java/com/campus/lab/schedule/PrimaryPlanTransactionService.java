@@ -1,6 +1,8 @@
 package com.campus.lab.schedule;
 
 import com.campus.lab.common.DayTimes;
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.LabLockKey;
 import com.campus.lab.reservation.ReservationMode;
 import com.campus.lab.reservation.ReservationRepository;
@@ -32,6 +34,7 @@ public class PrimaryPlanTransactionService {
     private final SchedulePublicationRepository publicationRepository;
     private final ReservationRepository reservationRepository;
     private final RuleValidator ruleValidator;
+    private final PeriodCatalog periodCatalog;
     private final Clock clock;
     private final ScheduleSeatingService seatingService = new ScheduleSeatingService();
 
@@ -40,11 +43,13 @@ public class PrimaryPlanTransactionService {
             SchedulePublicationRepository publicationRepository,
             ReservationRepository reservationRepository,
             RuleValidator ruleValidator,
+            PeriodCatalog periodCatalog,
             Clock clock) {
         this.scheduleRepository = scheduleRepository;
         this.publicationRepository = publicationRepository;
         this.reservationRepository = reservationRepository;
         this.ruleValidator = ruleValidator;
+        this.periodCatalog = periodCatalog;
         this.clock = clock;
     }
 
@@ -158,9 +163,10 @@ public class PrimaryPlanTransactionService {
             List<SeatSnapshot> seats = seatBitmaps.stream()
                     .map(ReservationRepository.SeatBitmap::snapshot).toList();
             EffectiveTimeRule rule = scheduleRepository.lockEffectiveRule(key.labId(), key.date());
+            com.campus.lab.period.PeriodSchedule schedule = periodCatalog.forLab(key.labId());
             ScheduleLabResource resource = new ScheduleLabResource(
                     key.labId(), key.date(), laboratory.status(), laboratory.capacity(),
-                    ScheduleRepository.openMask(rule), room.mask(), seats, rule);
+                    ScheduleRepository.openMask(rule, schedule), room.mask(), seats, rule, schedule);
             Map<Long, Long> seatVersions = new HashMap<>();
             seatBitmaps.forEach(seat -> seatVersions.put(seat.snapshot().seatId(), seat.version()));
             current.put(key, new CurrentLab(resource, room.version(), seatVersions));
@@ -179,7 +185,7 @@ public class PrimaryPlanTransactionService {
             demands.add(new ScheduleDemand(
                     reservation.resvId(), reservation.userId(), reservation.createdAt(), reservation.date(),
                     DayTimes.minuteOfDay(reservation.windowStart(), false),
-                    DayTimes.minuteOfDay(reservation.windowEnd(), true), reservation.durationMinutes(),
+                    DayTimes.minuteOfDay(reservation.windowEnd(), true), reservation.periodCount(),
                     reservation.mode(), reservation.attendeeCount(),
                     reservation.mode() == ReservationMode.SEAT ? reservation.seatCount() : 0,
                     users.get(reservation.userId()).creditScore(),
@@ -201,10 +207,10 @@ public class PrimaryPlanTransactionService {
             SchedulePublicationRepository.PublicationReservation reservation =
                     reservations.get(result.resvId());
             validateResultTimes(result, reservation);
+            TimeSlotMask placed = periodCatalog.forLab(result.labId())
+                    .between(result.start().toLocalTime(), result.end().toLocalTime());
             firstStage.add(new ScheduleAssignment(
-                    result.resvId(), result.labId(),
-                    TimeSlotMask.between(result.start().toLocalTime(), result.end().toLocalTime()).startSlot(),
-                    TimeSlotMask.between(result.start().toLocalTime(), result.end().toLocalTime()).endSlot()));
+                    result.resvId(), result.labId(), placed.startSlot(), placed.endSlot()));
         }
         ScheduleSeatingPlan seated = seatingService.allocate(
                 currentProblem, new SchedulePlan(task.algorithmType(), firstStage, Map.of()));
@@ -217,8 +223,8 @@ public class PrimaryPlanTransactionService {
         for (SchedulePublicationRepository.PublicationResult result : results.values()) {
             ScheduleSeatedAssignment rechecked = seatedByReservation.get(result.resvId());
             List<SeatAssignment> persistedSeats = publicationRepository.seatAssignments(result);
-            TimeSlotMask resultMask = TimeSlotMask.between(
-                    result.start().toLocalTime(), result.end().toLocalTime());
+            TimeSlotMask resultMask = periodCatalog.forLab(result.labId())
+                    .between(result.start().toLocalTime(), result.end().toLocalTime());
             if (rechecked.labId() != result.labId()
                     || rechecked.startSlot() != resultMask.startSlot()
                     || rechecked.endSlot() != resultMask.endSlot()
@@ -262,7 +268,7 @@ public class PrimaryPlanTransactionService {
                                 assignments.get(result.resvId()).candidateSeatAllocations().stream()
                                         .map(SeatAssignment::seatId).toList()),
                         current.resource().status(), current.resource().effectiveRule(),
-                        current.resource().seats());
+                        current.resource().seats(), current.resource().periodSchedule());
             } catch (IllegalArgumentException exception) {
                 throw new SchedulePublicationException("CURRENT_RULE_INVALID", exception);
             }

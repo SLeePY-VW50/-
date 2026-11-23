@@ -72,13 +72,13 @@ public class ReservationController {
     public ApiResponse<SlotRecommendationsView> recommendations(
             @RequestParam long labId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam int durationMinutes,
+            @RequestParam int durationPeriods,
             @RequestParam ReservationMode reservationMode,
             @RequestParam int attendeeCount,
             Authentication authentication) {
         long userId = Long.parseLong(authentication.getName());
         return ApiResponse.success(recommendationService.recommend(
-                userId, labId, date, durationMinutes, reservationMode, attendeeCount));
+                userId, labId, date, durationPeriods, reservationMode, attendeeCount));
     }
 
     @GetMapping("/my")

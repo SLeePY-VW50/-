@@ -30,7 +30,7 @@ abstract class AbstractScheduleIntegrationTest extends AbstractReservationNonTra
     }
 
     protected long createPending(long userId, long labId, LocalDate date) {
-        return createPending(userId, labId, date, "09:00", "12:00", 60);
+        return createPending(userId, labId, date, "09:15", "12:30", 2);
     }
 
     protected long createPending(

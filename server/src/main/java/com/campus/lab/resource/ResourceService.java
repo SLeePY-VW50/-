@@ -1,9 +1,11 @@
 package com.campus.lab.resource;
 
 import com.campus.lab.common.BusinessException;
+import com.campus.lab.period.ClassPeriod;
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.reservation.SeatSnapshot;
-import com.campus.lab.reservation.TimeSlotMask;
 import com.campus.lab.resource.dto.CancellationRuleView;
 import com.campus.lab.resource.dto.CheckinRuleView;
 import com.campus.lab.resource.dto.LabAvailabilityView;
@@ -17,7 +19,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -30,10 +31,12 @@ public class ResourceService {
 
     private final JdbcTemplate jdbcTemplate;
     private final RuleValidator ruleValidator;
+    private final PeriodCatalog periodCatalog;
 
-    public ResourceService(JdbcTemplate jdbcTemplate, RuleValidator ruleValidator) {
+    public ResourceService(JdbcTemplate jdbcTemplate, RuleValidator ruleValidator, PeriodCatalog periodCatalog) {
         this.jdbcTemplate = jdbcTemplate;
         this.ruleValidator = ruleValidator;
+        this.periodCatalog = periodCatalog;
     }
 
     public List<LabView> listLabs() {
@@ -47,14 +50,10 @@ public class ResourceService {
     public LabRulesView getRules(long labId) {
         requireLab(labId);
         Map<String, String> config = loadPublicConfig();
-        ReservationRuleConfig global = new ReservationRuleConfig(
-                requiredInt(config, "reservation.duration.min.minutes"),
-                requiredInt(config, "reservation.duration.max.minutes"),
-                requiredInt(config, "reservation.advance.min.days"),
-                requiredInt(config, "reservation.advance.max.days"));
+        ReservationRuleConfig global = reservationConfig(config);
         List<EffectiveTimeRule> rules = jdbcTemplate.query("""
                 SELECT rule_id, lab_id, day_of_week, open_time, close_time,
-                       min_duration_minutes, max_duration_minutes,
+                       open_start_period, open_end_period, min_periods, max_periods,
                        advance_min_days, advance_max_days
                 FROM t_time_rule
                 WHERE lab_id = ?
@@ -106,37 +105,62 @@ public class ResourceService {
                         seat.specLevel(), seat.nearWindow(), seat.status(),
                         Long.toUnsignedString(seat.mask())))
                 .toList();
+        PeriodSchedule schedule = periodCatalog.forLab(labId);
         List<SlotAvailabilityView> slots = buildSlots(
-                resolvedRoomMask, seats, laboratory.status());
+                resolvedRoomMask, seats, laboratory.status(), schedule, bookableMask(labId, date, schedule));
         return new LabAvailabilityView(
                 labId, date, laboratory.status(), Long.toUnsignedString(resolvedRoomMask),
                 seatViews, slots);
     }
 
     private List<SlotAvailabilityView> buildSlots(
-            long roomMask, List<SeatSnapshot> seats, ResourceStatus labStatus) {
-        List<SlotAvailabilityView> slots = new ArrayList<>(TimeSlotMask.SLOTS_PER_DAY);
+            long roomMask, List<SeatSnapshot> seats, ResourceStatus labStatus,
+            PeriodSchedule schedule, long bookableMask) {
+        List<SlotAvailabilityView> slots = new ArrayList<>(schedule.slotCount());
         boolean labActive = labStatus == ResourceStatus.ACTIVE;
-        for (int index = 0; index < TimeSlotMask.SLOTS_PER_DAY; index++) {
+        for (int index = 0; index < schedule.slotCount(); index++) {
+            ClassPeriod period = schedule.periodAt(index);
             long slotBit = 1L << index;
             boolean roomOccupied = (roomMask & slotBit) != 0;
             int occupiedSeatCount = 0;
             int availableSeatCount = 0;
+            boolean bookable = (bookableMask & slotBit) != 0;
             for (SeatSnapshot seat : seats) {
                 boolean occupied = (seat.mask() & slotBit) != 0;
                 if (occupied) {
                     occupiedSeatCount++;
                 }
-                if (labActive && !roomOccupied && !occupied
+                if (labActive && bookable && !roomOccupied && !occupied
                         && seat.status() == ResourceStatus.ACTIVE) {
                     availableSeatCount++;
                 }
             }
             slots.add(new SlotAvailabilityView(
-                    index, slotTime(index), slotTime(index + 1), roomOccupied,
-                    occupiedSeatCount, availableSeatCount));
+                    index, period.number(), period.session().name(), period.label(),
+                    schedule.format(period.start()), schedule.format(period.end()), bookable,
+                    roomOccupied, occupiedSeatCount, availableSeatCount));
         }
         return slots;
+    }
+
+    private long bookableMask(long labId, java.time.LocalDate date, PeriodSchedule schedule) {
+        EffectiveTimeRule rule = getRules(labId).weeklyRules().stream()
+                .filter(candidate -> candidate.dayOfWeek() == date.getDayOfWeek().getValue())
+                .findFirst()
+                .orElse(null);
+        if (rule == null) {
+            return 0;
+        }
+        return schedule.bookableMask(
+                rule.openTime(), rule.closeTime(), rule.openStartPeriod(), rule.openEndPeriod());
+    }
+
+    private static ReservationRuleConfig reservationConfig(Map<String, String> config) {
+        return new ReservationRuleConfig(
+                requiredInt(config, "reservation.duration.min.periods"),
+                requiredInt(config, "reservation.duration.max.periods"),
+                requiredInt(config, "reservation.advance.min.days"),
+                requiredInt(config, "reservation.advance.max.days"));
     }
 
     public LabView getLab(long labId) {
@@ -166,8 +190,9 @@ public class ResourceService {
                 rs.getLong("rule_id"), rs.getLong("lab_id"), rs.getInt("day_of_week"),
                 com.campus.lab.common.DayTimes.parseDatabaseTime(rs.getString("open_time")),
                 com.campus.lab.common.DayTimes.parseDatabaseTime(rs.getString("close_time")),
-                rs.getObject("min_duration_minutes", Integer.class),
-                rs.getObject("max_duration_minutes", Integer.class),
+                rs.getInt("open_start_period"), rs.getInt("open_end_period"),
+                rs.getObject("min_periods", Integer.class),
+                rs.getObject("max_periods", Integer.class),
                 rs.getObject("advance_min_days", Integer.class),
                 rs.getObject("advance_max_days", Integer.class));
     }
@@ -176,8 +201,8 @@ public class ResourceService {
         return jdbcTemplate.query("""
                 SELECT config_key, config_value FROM t_sys_config
                 WHERE config_key IN (
-                    'reservation.duration.min.minutes',
-                    'reservation.duration.max.minutes',
+                    'reservation.duration.min.periods',
+                    'reservation.duration.max.periods',
                     'reservation.advance.min.days',
                     'reservation.advance.max.days',
                     'cancel.free.before.hours',
@@ -195,18 +220,11 @@ public class ResourceService {
         });
     }
 
-    private int requiredInt(Map<String, String> config, String key) {
+    private static int requiredInt(Map<String, String> config, String key) {
         String value = config.get(key);
         if (value == null) {
             throw new IllegalStateException("缺少公开规则配置: " + key);
         }
         return Integer.parseInt(value);
-    }
-
-    private static String slotTime(int slot) {
-        if (slot == TimeSlotMask.SLOTS_PER_DAY) {
-            return "24:00";
-        }
-        return String.format(Locale.ROOT, "%02d:%02d", slot / 2, (slot % 2) * 30);
     }
 }

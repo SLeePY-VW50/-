@@ -15,10 +15,9 @@ const accounts = [
   { account: 'A1001', role: '系统管理员' },
 ]
 const periods = [
-  { name: '凌晨', range: '00:00–06:00' },
-  { name: '上午', range: '06:00–12:00' },
-  { name: '下午', range: '12:00–18:00' },
-  { name: '晚间', range: '18:00–24:00' },
+  { name: '上午', range: '08:30–12:30', cells: ['08:30', '09:15', '10:05', '11:00', '11:45'] },
+  { name: '下午', range: '13:30–17:30', cells: ['13:30', '14:15', '15:05', '16:00', '16:45'] },
+  { name: '晚上', range: '18:30–20:50', cells: ['18:30', '19:15', '20:05'] },
 ]
 const form = reactive({ account: '', password: '' })
 const registerForm = reactive({ account: '', name: '', password: '', confirm: '' })
@@ -37,23 +36,21 @@ const todayLabel = computed(() => {
   return `${value.getFullYear()} 年 ${value.getMonth() + 1} 月 ${value.getDate()} 日`
 })
 
-function timeLabel(index: number) {
-  return `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`
-}
-function cellClass(index: number) {
-  const hour = Math.floor(index / 2)
-  if (hour < 8 || hour >= 22) return 'cell cell--closed'
-  if (index === 28 || index === 29) return 'cell cell--occupied'
-  if (index >= 32 && index <= 34) return 'cell cell--selected'
+function cellClass(periodIndex: number, cellIndex: number) {
+  if (periodIndex === 2) return 'cell cell--closed'
+  if (periodIndex === 0 && cellIndex === 1) return 'cell cell--occupied'
+  if (periodIndex === 1 && cellIndex <= 1) return 'cell cell--selected'
   return 'cell'
 }
 function placeNow() {
   const current = new Date()
   const mins = current.getHours() * 60 + current.getMinutes()
-  const period = Math.min(3, Math.floor(mins / 360))
+  const spans = [[510, 750], [810, 1050], [1110, 1250]]
+  const period = spans.findIndex(([start, end]) => mins >= start && mins < end)
+  const span = spans[period]
   now.value = {
     period,
-    top: `calc(48px + (100% - 48px) * ${(mins % 360) / 360})`,
+    top: span ? `calc(48px + (100% - 48px) * ${(mins - span[0]) / (span[1] - span[0])})` : '0%',
     label: `${String(current.getHours()).padStart(2, '0')}:${String(current.getMinutes()).padStart(2, '0')}`,
   }
 }
@@ -109,7 +106,7 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
     <div class="gate__body">
       <aside class="rail">
         <form class="login-box" @submit.prevent="mode === 'login' ? login() : register()">
-          <h1>{{ mode === 'login' ? '一天四十八格。' : '注册学生账号。' }}</h1>
+          <h1>{{ mode === 'login' ? '一天十三节。' : '注册学生账号。' }}</h1>
           <p class="lead">{{ mode === 'login' ? '先看清占用、容量和审批，再决定预约或签到。' : '新账号默认学生角色，注册后即可用该账号登录。' }}</p>
           <template v-if="mode === 'login'">
             <label class="field"><span>账号</span><input v-model="form.account" autocomplete="username" autofocus placeholder="学号或工号"></label>
@@ -134,12 +131,12 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
         </form>
       </aside>
       <section class="ruler-main" :aria-label="`时间尺示意，${today()}`">
-        <div class="main-head"><b>{{ todayLabel }}</b><span>每格 30 分钟</span></div>
+        <div class="main-head"><b>{{ todayLabel }}</b><span>一节一格</span></div>
         <div class="periods" aria-hidden="true">
           <div v-for="(period, periodIndex) in periods" :key="period.name" class="period">
             <div class="period-h"><b>{{ period.name }}</b>{{ period.range }}</div>
             <div class="slots">
-              <span v-for="cell in 12" :key="cell" :class="cellClass(periodIndex * 12 + cell - 1)">{{ cellClass(periodIndex * 12 + cell - 1).includes('closed') ? '' : timeLabel(periodIndex * 12 + cell - 1) }}</span>
+              <span v-for="(cell, cellIndex) in period.cells" :key="cell" :class="cellClass(periodIndex, cellIndex)">{{ cell }}</span>
             </div>
             <div v-if="now.period === periodIndex" class="now-line" :style="{ top: now.top }"><span>{{ now.label }}</span></div>
           </div>

@@ -32,7 +32,7 @@ class EarlyCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest {
         long reservationId = createReservation(
                 userId, labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
 
         at("2026-10-23T23:45:00Z");
         MvcResult first = terminalCheckin(cookie, account, USER_PASSWORD).andReturn();
@@ -54,7 +54,7 @@ class EarlyCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest {
         long anotherApproved = createReservation(
                 userId, labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
         MvcResult additional = terminalCheckin(cookie, account, USER_PASSWORD).andReturn();
         assertThat(additional.getResponse().getStatus()).isEqualTo(200);
         assertThat(responseJson(additional).path("data").path("reservationId").asLong())

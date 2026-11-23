@@ -1,5 +1,6 @@
 package com.campus.lab.schedule;
 
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ResourceSnapshot;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.reservation.SeatSnapshot;
@@ -16,21 +17,23 @@ public record ScheduleLabResource(
         long openMask,
         long roomMask,
         List<SeatSnapshot> seats,
-        EffectiveTimeRule effectiveRule) {
-
-    private static final long DAY_MASK = (1L << 48) - 1;
+        EffectiveTimeRule effectiveRule,
+        PeriodSchedule periodSchedule) {
 
     public ScheduleLabResource {
         Objects.requireNonNull(date, "date");
         Objects.requireNonNull(status, "status");
         Objects.requireNonNull(seats, "seats");
+        Objects.requireNonNull(periodSchedule, "periodSchedule");
         seats = List.copyOf(seats);
         if (capacity <= 0) {
             throw new IllegalArgumentException("实验室容量必须大于0");
         }
-        if ((openMask & ~DAY_MASK) != 0 || (roomMask & ~DAY_MASK) != 0
-                || seats.stream().anyMatch(seat -> (seat.mask() & ~DAY_MASK) != 0)) {
-            throw new IllegalArgumentException("时间掩码只能使用一天内的48个时间片");
+        long dayMask = periodSchedule.slotCount() == 63
+                ? Long.MAX_VALUE : (1L << periodSchedule.slotCount()) - 1L;
+        if ((openMask & ~dayMask) != 0 || (roomMask & ~dayMask) != 0
+                || seats.stream().anyMatch(seat -> (seat.mask() & ~dayMask) != 0)) {
+            throw new IllegalArgumentException("时间掩码只能使用节次表中的节");
         }
     }
 

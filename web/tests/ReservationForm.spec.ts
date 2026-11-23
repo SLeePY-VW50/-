@@ -37,13 +37,13 @@ describe('ReservationForm', () => {
   it('FIXED ROOM提交开始结束时间且不发送seatCount', async () => {
     const wrapper = await mountForm()
     await fillCommon(wrapper)
-    await wrapper.get('[data-testid="start-time"]').setValue('09:00')
-    await wrapper.get('[data-testid="end-time"]').setValue('11:00')
+    await wrapper.get('[data-testid="start-time"]').setValue('09:15')
+    await wrapper.get('[data-testid="end-time"]').setValue('11:45')
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
     expect(http.post).toHaveBeenCalledWith('/api/reservations', expect.objectContaining({
       allocationMode: 'FIXED', reservationMode: 'ROOM', attendeeCount: 2,
-      startTime: '09:00', endTime: '11:00', seatCount: null,
+      startTime: '09:15', endTime: '11:45', seatCount: null,
     }))
   })
 
@@ -52,33 +52,33 @@ describe('ReservationForm', () => {
     await wrapper.get('[data-testid="allocation-schedulable"]').setValue(true)
     await wrapper.get('[data-testid="mode-seat"]').setValue(true)
     await fillCommon(wrapper)
-    await wrapper.get('[data-testid="window-start"]').setValue('08:00')
-    await wrapper.get('[data-testid="window-end"]').setValue('12:00')
-    await wrapper.get('[data-testid="duration"]').setValue('120')
+    await wrapper.get('[data-testid="window-start"]').setValue('08:30')
+    await wrapper.get('[data-testid="window-end"]').setValue('12:30')
+    await wrapper.get('[data-testid="duration"]').setValue('2')
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
     expect(http.post).toHaveBeenCalledWith('/api/reservations', expect.objectContaining({
       allocationMode: 'SCHEDULABLE', reservationMode: 'SEAT', attendeeCount: 2, seatCount: 2,
-      windowStart: '08:00', windowEnd: '12:00', durationMinutes: 120,
+      windowStart: '08:30', windowEnd: '12:30', durationPeriods: 2,
     }))
   })
 
-  it('支持24:00作为结束时间', async () => {
+  it('支持最后一节作为结束时间', async () => {
     const wrapper = await mountForm()
     await fillCommon(wrapper)
-    await wrapper.get('[data-testid="start-time"]').setValue('23:00')
-    await wrapper.get('[data-testid="end-time"]').setValue('24:00')
+    await wrapper.get('[data-testid="start-time"]').setValue('20:05')
+    await wrapper.get('[data-testid="end-time"]').setValue('20:50')
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
-    expect(http.post).toHaveBeenCalledWith('/api/reservations', expect.objectContaining({ endTime: '24:00' }))
+    expect(http.post).toHaveBeenCalledWith('/api/reservations', expect.objectContaining({ endTime: '20:50' }))
   })
 
   it('冲突报错时保留输入且不重复自动提交', async () => {
     vi.mocked(http.post).mockRejectedValueOnce(new Error('所选时段与已有预约冲突'))
     const wrapper = await mountForm()
     await fillCommon(wrapper)
-    await wrapper.get('[data-testid="start-time"]').setValue('09:00')
-    await wrapper.get('[data-testid="end-time"]').setValue('11:00')
+    await wrapper.get('[data-testid="start-time"]').setValue('09:15')
+    await wrapper.get('[data-testid="end-time"]').setValue('11:45')
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
     expect(wrapper.text()).toContain('所选时段与已有预约冲突')
@@ -107,13 +107,13 @@ describe('ReservationForm', () => {
         initialDate: '2026-11-03',
         initialReservationMode: 'SEAT',
         initialAttendeeCount: 3,
-        selectedRange: { start: 16, end: 17 },
+        selectedRange: { start: 0, end: 1 },
       },
       global: { plugins: [createPinia()] },
     })
     await flushPromises()
-    expect((wrapper.get('[data-testid="start-time"]').element as HTMLSelectElement).value).toBe('08:00')
-    expect((wrapper.get('[data-testid="end-time"]').element as HTMLSelectElement).value).toBe('09:00')
+    expect((wrapper.get('[data-testid="start-time"]').element as HTMLSelectElement).value).toBe('08:30')
+    expect((wrapper.get('[data-testid="end-time"]').element as HTMLSelectElement).value).toBe('10:00')
     expect((wrapper.get('[data-testid="mode-seat"]').element as HTMLInputElement).checked).toBe(true)
     expect((wrapper.get('[data-testid="attendee-count"]').element as HTMLInputElement).value).toBe('3')
     expect((wrapper.get('[data-testid="seat-count"]').element as HTMLInputElement).value).toBe('3')
@@ -131,14 +131,14 @@ describe('ReservationForm', () => {
     expect(http.post).not.toHaveBeenCalled()
   })
 
-  it('固定预约超过8片时提示结束时间错误', async () => {
+  it('固定预约超过5节时提示结束时间错误', async () => {
     const wrapper = await mountForm()
     await fillCommon(wrapper)
-    await wrapper.get('[data-testid="start-time"]').setValue('09:00')
-    await wrapper.get('[data-testid="end-time"]').setValue('14:00')
+    await wrapper.get('[data-testid="start-time"]').setValue('08:30')
+    await wrapper.get('[data-testid="end-time"]').setValue('16:45')
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
-    expect(wrapper.get('#error-endTime').text()).toContain('最多选择 8 个时间片')
+    expect(wrapper.get('#error-endTime').text()).toContain('最多选择 5 节')
     expect(http.post).not.toHaveBeenCalled()
   })
 })
