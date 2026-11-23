@@ -1,17 +1,21 @@
 package com.campus.lab.auth;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.campus.lab.auth.dto.CreateUserRequest;
 import com.campus.lab.auth.dto.LoginRequest;
 import com.campus.lab.auth.dto.LoginResponse;
+import com.campus.lab.auth.dto.RegisterRequest;
 import com.campus.lab.auth.dto.UserView;
 import com.campus.lab.auth.entity.UserEntity;
 import com.campus.lab.auth.entity.UserStatus;
 import com.campus.lab.auth.mapper.UserMapper;
 import com.campus.lab.common.BusinessException;
 import java.util.List;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -68,6 +72,34 @@ public class AuthService {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "未认证或凭证无效");
         }
         return toView(user);
+    }
+
+    @Transactional
+    public UserView register(RegisterRequest request) {
+        return createAccount(request.account(), request.name(), request.password(), "STUDENT");
+    }
+
+    @Transactional
+    public UserView createUser(CreateUserRequest request) {
+        return createAccount(request.account(), request.name(), request.password(), request.role());
+    }
+
+    private UserView createAccount(String account, String name, String password, String roleCode) {
+        Long roleId = userMapper.selectRoleIdByCode(roleCode);
+        if (roleId == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "角色无效");
+        }
+        UserEntity user = new UserEntity();
+        user.setAccount(account);
+        user.setName(name);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException exception) {
+            throw new BusinessException(HttpStatus.CONFLICT, "账号已存在");
+        }
+        userMapper.insertUserRole(user.getUserId(), roleId);
+        return toView(userMapper.selectById(user.getUserId()));
     }
 
     public List<UserView> listUsers() {

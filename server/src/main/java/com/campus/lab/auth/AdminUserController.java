@@ -1,5 +1,6 @@
 package com.campus.lab.auth;
 
+import com.campus.lab.auth.dto.CreateUserRequest;
 import com.campus.lab.auth.dto.UpdateUserStatusRequest;
 import com.campus.lab.auth.dto.UserView;
 import com.campus.lab.common.ApiResponse;
@@ -8,6 +9,7 @@ import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +27,11 @@ public class AdminUserController {
     @GetMapping
     public ApiResponse<List<UserView>> listUsers() {
         return ApiResponse.success(authService.listUsers());
+    }
+
+    @PostMapping
+    public ApiResponse<UserView> createUser(@Valid @RequestBody CreateUserRequest request) {
+        return ApiResponse.success(authService.createUser(request));
     }
 
     @PatchMapping("/{id}/status")

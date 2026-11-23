@@ -60,8 +60,8 @@ class ReservationScheduledJobsTest extends AbstractCheckinNonTransactionalTest {
         long userId = userIdByAccount(account);
         long reservationId = createReservation(
                 userId, labId, "SEAT", "APPROVED",
-                LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 12, 0), true);
+                LocalDateTime.of(2026, 10, 24, 8, 30),
+                LocalDateTime.of(2026, 10, 24, 12, 30), true);
         jdbcTemplate.update("UPDATE sys_user SET credit_score = 5 WHERE user_id = ?", userId);
         long seatId = assignedSeatId(reservationId);
 
@@ -76,7 +76,7 @@ class ReservationScheduledJobsTest extends AbstractCheckinNonTransactionalTest {
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT change_amount FROM t_credit_record WHERE user_id = ?
                 """, Integer.class, userId)).isEqualTo(-5);
-        assertThat(seatMask(seatId)).isEqualTo(mask("08:00", "10:30"));
+        assertThat(seatMask(seatId)).isEqualTo(mask("08:30", "10:50"));
         assertThat(transitionCount(reservationId, "APPROVED", "NO_SHOW")).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT reason FROM t_reservation_log
@@ -94,7 +94,7 @@ class ReservationScheduledJobsTest extends AbstractCheckinNonTransactionalTest {
 
     @Test
     void checkinHoldingLabLockWinsAgainstNoShowWithoutCreditOrDuplicateTransition() throws Exception {
-        Instant checkinNow = Instant.parse("2026-10-24T00:15:00Z");
+        Instant checkinNow = Instant.parse("2026-10-23T23:45:00Z");
         Instant noShowNow = Instant.parse("2026-10-24T00:15:01Z");
         doAnswer(invocation -> "checkin-competitor".equals(Thread.currentThread().getName())
                 ? checkinNow : noShowNow).when(clock).instant();
@@ -390,7 +390,7 @@ class ReservationScheduledJobsTest extends AbstractCheckinNonTransactionalTest {
     }
 
     private static long mask(String start, String end) {
-        return com.campus.lab.reservation.TimeSlotMask.between(
+        return com.campus.lab.period.DongfangPeriodTable.schedule().between(
                 LocalTime.parse(start), LocalTime.parse(end)).value();
     }
 }

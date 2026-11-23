@@ -1,5 +1,7 @@
 package com.campus.lab.reservation;
 
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -9,9 +11,11 @@ import org.springframework.stereotype.Component;
 public class ReservationReleaseService {
 
     private final ReservationRepository repository;
+    private final PeriodCatalog periodCatalog;
 
-    public ReservationReleaseService(ReservationRepository repository) {
+    public ReservationReleaseService(ReservationRepository repository, PeriodCatalog periodCatalog) {
         this.repository = repository;
+        this.periodCatalog = periodCatalog;
     }
 
     public void release(ReservationRepository.CancellationReservation reservation) {
@@ -19,7 +23,7 @@ public class ReservationReleaseService {
                 reservation.labId(), reservation.date());
         if (reservation.reservationMode() == ReservationMode.ROOM) {
             LocalTime end = reservation.endTime().toLocalTime();
-            long requestMask = TimeSlotMask.between(
+            long requestMask = schedule(reservation).between(
                     reservation.startTime().toLocalTime(), end).value();
             repository.releaseRoomMask(
                     reservation.labId(), reservation.date(), room.version(), requestMask);
@@ -36,14 +40,15 @@ public class ReservationReleaseService {
 
     public void releaseRemaining(
             ReservationRepository.CancellationReservation reservation, LocalDateTime now) {
-        TimeSlotMask original = TimeSlotMask.between(
+        PeriodSchedule schedule = schedule(reservation);
+        TimeSlotMask original = schedule.between(
                 reservation.startTime().toLocalTime(), reservation.endTime().toLocalTime());
         if (now.toLocalDate().isAfter(reservation.date())) {
             return;
         }
         int firstReleasableSlot = 0;
         if (now.toLocalDate().isEqual(reservation.date())) {
-            firstReleasableSlot = (now.getHour() * 60 + now.getMinute()) / 30 + 1;
+            firstReleasableSlot = schedule.firstReleasableSlot(now.toLocalTime());
         }
         int releaseStart = Math.max(original.startSlot(), firstReleasableSlot);
         if (releaseStart >= original.endSlot()) {
@@ -67,6 +72,10 @@ public class ReservationReleaseService {
                         assignment.seatId(), reservation.date(), assignment.version(), releaseMask);
             }
         }
+    }
+
+    private PeriodSchedule schedule(ReservationRepository.CancellationReservation reservation) {
+        return periodCatalog.forLab(reservation.labId());
     }
 
     private List<ReservationRepository.AssignedSeatBitmap> lockAndValidateAssignments(

@@ -42,10 +42,10 @@ class ReservationSeatCountConstraintIntegrationTest extends AbstractIntegrationT
                     (user_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
                      lab_id, start_time, end_time, attendee_count, seat_count, purpose, status)
-                VALUES (?, ?, ?, '2026-11-02', '09:00:00', '10:00:00', 60,
+                VALUES (?, ?, ?, '2026-11-02', '09:15:00', '10:00:00', 45,
                         ?, ?, ?, 1, ?, ?, ?)
                 """, userId, allocationMode, reservationMode, labId,
-                fixed ? "2026-11-02 09:00:00" : null,
+                fixed ? "2026-11-02 09:15:00" : null,
                 fixed ? "2026-11-02 10:00:00" : null,
                 seatCount, "v4-test-" + UUID.randomUUID(),
                 fixed ? "APPROVED" : "PENDING_SCHEDULE");

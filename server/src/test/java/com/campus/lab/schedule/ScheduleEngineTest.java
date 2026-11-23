@@ -37,7 +37,7 @@ class ScheduleEngineTest {
         var demands = new ArrayList<>(List.of(ScheduleTestFixtures.demand(1)));
         var seats = new ArrayList<>(ScheduleTestFixtures.lab(1).seats());
         var resources = new ArrayList<>(List.of(ScheduleTestFixtures.lab(
-                1, 20, ScheduleTestFixtures.mask(16, 40), 0, seats)));
+                1, 20, ScheduleTestFixtures.mask(0, 10), 0, seats)));
         ScheduleProblem problem = new ScheduleProblem(demands, resources);
 
         demands.clear();
@@ -54,13 +54,13 @@ class ScheduleEngineTest {
     @Test
     void rejectsInvalidWindowsDurationsAndDuplicateDemandIds() {
         assertThatThrownBy(() -> ScheduleTestFixtures.withWindow(
-                ScheduleTestFixtures.demand(1), 480, 735, 60))
+                ScheduleTestFixtures.demand(1), 720, 480, 1))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ScheduleTestFixtures.withWindow(
-                ScheduleTestFixtures.demand(1), 480, 720, 45))
+                ScheduleTestFixtures.demand(1), 480, 720, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ScheduleTestFixtures.withWindow(
-                ScheduleTestFixtures.demand(1), 480, 720, 300))
+                ScheduleTestFixtures.demand(1), 480, 720, 64))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ScheduleProblem(
                 List.of(ScheduleTestFixtures.demand(1), ScheduleTestFixtures.demand(1)),
@@ -89,10 +89,10 @@ class ScheduleEngineTest {
     @Test
     void threeEnginesShareOneSnapshotWithoutMutatingItOrEachOthersState() {
         ScheduleLabResource resource = ScheduleTestFixtures.lab(
-                1, 20, ScheduleTestFixtures.mask(16, 40), ScheduleTestFixtures.mask(30, 32),
+                1, 20, ScheduleTestFixtures.mask(0, 10), ScheduleTestFixtures.mask(8, 10),
                 List.of(
                         ScheduleTestFixtures.seat(11, 1, "STANDARD", "A", true,
-                                ScheduleTestFixtures.mask(16, 17)),
+                                ScheduleTestFixtures.mask(0, 1)),
                         ScheduleTestFixtures.seat(12, 2, "STANDARD", "A", true, 0)));
         ScheduleProblem problem = new ScheduleProblem(
                 List.of(ScheduleTestFixtures.demand(1), ScheduleTestFixtures.demand(2)), List.of(resource));

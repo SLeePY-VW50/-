@@ -8,12 +8,17 @@ public record EffectiveTimeRule(
         int dayOfWeek,
         LocalTime openTime,
         LocalTime closeTime,
-        int minDurationMinutes,
-        int maxDurationMinutes,
+        int openStartPeriod,
+        int openEndPeriod,
+        int minPeriods,
+        int maxPeriods,
         int advanceMinDays,
         int advanceMaxDays) {
 
     public EffectiveTimeRule {
-        RuleValidator.validateDurationRange(minDurationMinutes, maxDurationMinutes);
+        if (openStartPeriod < 1 || openEndPeriod < openStartPeriod) {
+            throw new IllegalArgumentException("开放节次范围无效");
+        }
+        RuleValidator.validatePeriodRange(minPeriods, maxPeriods);
     }
 }

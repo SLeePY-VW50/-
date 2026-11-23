@@ -3,6 +3,7 @@ package com.campus.lab.auth;
 import com.campus.lab.auth.dto.InternalUserResponse;
 import com.campus.lab.auth.dto.LoginRequest;
 import com.campus.lab.auth.dto.LoginResponse;
+import com.campus.lab.auth.dto.RegisterRequest;
 import com.campus.lab.auth.dto.UserView;
 import com.campus.lab.auth.wechat.WeChatAuthService;
 import com.campus.lab.common.ApiResponse;
@@ -29,6 +30,11 @@ public class AuthController {
     @PostMapping("/auth/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request));
+    }
+
+    @PostMapping("/auth/register")
+    public ApiResponse<UserView> register(@Valid @RequestBody RegisterRequest request) {
+        return ApiResponse.success(authService.register(request));
     }
 
     @PostMapping("/auth/wechat/login")

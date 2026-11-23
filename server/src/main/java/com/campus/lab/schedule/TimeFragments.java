@@ -5,10 +5,10 @@ final class TimeFragments {
     private TimeFragments() {
     }
 
-    static int fragmentedFreeSlots(long openMask, long occupiedMask, int minimumSlots) {
+    static int fragmentedFreeSlots(long openMask, long occupiedMask, int minimumSlots, int slotCount) {
         int fragmented = 0;
         int run = 0;
-        for (int slot = 0; slot < 48; slot++) {
+        for (int slot = 0; slot < slotCount; slot++) {
             long bit = 1L << slot;
             if ((openMask & bit) != 0 && (occupiedMask & bit) == 0) {
                 run++;

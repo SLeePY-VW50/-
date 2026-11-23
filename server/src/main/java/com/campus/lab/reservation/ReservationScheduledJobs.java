@@ -60,6 +60,7 @@ public class ReservationScheduledJobs {
                 (afterId, limit) -> jdbcTemplate.queryForList("""
                         SELECT resv_id FROM t_reservation
                         WHERE status = 'APPROVED' AND checkin_time IS NULL
+                          AND occupancy_source = 'PERSONAL'
                           AND start_time IS NOT NULL
                           AND start_time < DATE_SUB(?, INTERVAL ? MINUTE)
                           AND resv_id > ?

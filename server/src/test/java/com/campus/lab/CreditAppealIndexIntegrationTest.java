@@ -19,7 +19,7 @@ class CreditAppealIndexIntegrationTest extends AbstractReservationNonTransaction
                     (user_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
                      attendee_count, seat_count, purpose, status)
-                SELECT ?, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:00:00', '12:00:00',
+                SELECT ?, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:30:00', '12:30:00',
                        60, 1, 1, ?, 'CANCELLED'
                 FROM (
                     SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3

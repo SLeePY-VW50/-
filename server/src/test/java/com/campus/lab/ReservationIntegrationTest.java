@@ -24,7 +24,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         long labId = labId("LAB-A");
         String token = loginAndGetToken("20240001", "Lab@2026");
 
-        JsonNode created = createReservation(token, fixedSeatRequest(labId, "09:00", "10:00", 2))
+        JsonNode created = createReservation(token, fixedSeatRequest(labId, "09:15", "10:00", 2))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.allocationMode").value("FIXED"))
@@ -44,8 +44,8 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
                     assertThat(seat.path("zoneCode").asText()).isNotBlank();
                     assertThat(seat.path("zoneMismatch").asBoolean()).isFalse();
                     assertThat(seat.path("mask").asText()).isEqualTo(
-                            Long.toUnsignedString(TimeSlotMask.between(
-                                    LocalTime.of(9, 0), LocalTime.of(10, 0)).value()));
+                            Long.toUnsignedString(com.campus.lab.period.DongfangPeriodTable.schedule().between(
+                                    LocalTime.of(9, 15), LocalTime.of(10, 0)).value()));
                 });
         assertThat(count("t_reservation", reservationId)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
@@ -55,7 +55,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
                 "SELECT COUNT(*) FROM t_reservation_seat WHERE resv_id = ? "
                         + "AND assignment_method = 'FIXED'", Integer.class, reservationId))
                 .isEqualTo(2);
-        long expectedMask = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM t_reservation_seat rs
@@ -70,7 +70,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
                 "SELECT mask FROM t_slot_bitmap WHERE lab_id = ? AND bitmap_date = ?",
                 Long.class, labId, DATE)).isZero();
 
-        JsonNode disjoint = createReservation(token, fixedSeatRequest(labId, "10:00", "11:00", 2))
+        JsonNode disjoint = createReservation(token, fixedSeatRequest(labId, "10:05", "11:45", 2))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("APPROVED"))
                 .andReturn();
@@ -81,7 +81,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     void fixedRoomAllocatesEveryActiveSeatAndOnlyUpdatesRoomBitmap() throws Exception {
         long labId = labId("LAB-A");
         String token = loginAndGetToken("20240001", "Lab@2026");
-        Map<String, Object> request = fixedRoomRequest(labId, "09:00", "10:00", 20);
+        Map<String, Object> request = fixedRoomRequest(labId, "09:15", "10:00", 20);
         request.put("seatCount", 1);
 
         JsonNode created = createReservation(token, request)
@@ -98,7 +98,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_reservation_seat WHERE resv_id = ?",
                 Integer.class, reservationId)).isEqualTo(activeSeats);
-        long expectedMask = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT mask FROM t_slot_bitmap WHERE lab_id = ? AND bitmap_date = ?",
                 Long.class, labId, DATE)).isEqualTo(expectedMask);
@@ -114,7 +114,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         long labId = labId("LAB-A");
         for (String account : new String[] {"L1001", "A1001"}) {
             String token = loginAndGetToken(account, "Lab@2026");
-            Map<String, Object> request = fixedSeatRequest(labId, "09:00", "10:00", 1);
+            Map<String, Object> request = fixedSeatRequest(labId, "09:15", "10:00", 1);
             request.put("purpose", "管理员禁止预约-" + account);
             createReservation(token, request)
                     .andExpect(status().isForbidden())
@@ -130,7 +130,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         long labId = labId("LAB-A");
         long jwtUserId = userIdByAccount("20240001");
         String token = loginAndGetToken("20240001", "Lab@2026");
-        Map<String, Object> request = fixedSeatRequest(labId, "09:00", "10:00", 1);
+        Map<String, Object> request = fixedSeatRequest(labId, "09:15", "10:00", 1);
         request.put("userId", userIdByAccount("T1001"));
 
         JsonNode created = createReservation(token, request)
@@ -150,7 +150,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("UPDATE sys_user SET credit_score = 59 WHERE user_id = ?", userId);
         String token = loginAndGetToken(account, "Lab@2026");
 
-        createReservation(token, fixedSeatRequest(labId("LAB-A"), "09:00", "10:00", 1))
+        createReservation(token, fixedSeatRequest(labId("LAB-A"), "09:15", "10:00", 1))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
 
@@ -164,7 +164,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("UPDATE t_lab SET status = 'MAINTENANCE' WHERE lab_id = ?", labId);
         String token = loginAndGetToken("20240001", "Lab@2026");
 
-        createReservation(token, fixedSeatRequest(labId, "09:00", "10:00", 1))
+        createReservation(token, fixedSeatRequest(labId, "09:15", "10:00", 1))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("实验室当前不可预约"));
     }
@@ -175,7 +175,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
             "2027-01-01,09:00,10:00",
             "2026-11-02,07:30,08:00",
             "2026-11-02,09:00,13:30",
-            "2026-11-02,09:15,10:00"
+            "2026-11-02,09:10,10:00"
     })
     void invalidAdvanceOpeningDurationOrAlignmentIsRejected(String date, String start, String end)
             throws Exception {
@@ -191,7 +191,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void seatCountMustEqualAttendeeCount() throws Exception {
         String token = loginAndGetToken("20240001", "Lab@2026");
-        Map<String, Object> request = fixedSeatRequest(labId("LAB-A"), "09:00", "10:00", 2);
+        Map<String, Object> request = fixedSeatRequest(labId("LAB-A"), "09:15", "10:00", 2);
         request.put("seatCount", 1);
 
         createReservation(token, request)
@@ -204,7 +204,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     void roomAttendeeCountCannotExceedCapacity() throws Exception {
         String token = loginAndGetToken("T1001", "Lab@2026");
 
-        createReservation(token, fixedRoomRequest(labId("LAB-A"), "09:00", "10:00", 21))
+        createReservation(token, fixedRoomRequest(labId("LAB-A"), "09:15", "10:00", 21))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         org.hamcrest.Matchers.containsString("容量")));
@@ -220,7 +220,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
                 """, labId);
         String token = loginAndGetToken("20240001", "Lab@2026");
 
-        createReservation(token, fixedSeatRequest(labId, "09:00", "10:00", 2))
+        createReservation(token, fixedSeatRequest(labId, "09:15", "10:00", 2))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         org.hamcrest.Matchers.containsString("容量")));
@@ -232,10 +232,10 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void sameUserCannotOverlapAcrossLaboratories() throws Exception {
         String token = loginAndGetToken("20240001", "Lab@2026");
-        createReservation(token, fixedSeatRequest(labId("LAB-A"), "09:00", "10:00", 1))
+        createReservation(token, fixedSeatRequest(labId("LAB-A"), "09:15", "10:00", 1))
                 .andExpect(status().isOk());
 
-        createReservation(token, fixedSeatRequest(labId("LAB-B"), "09:30", "10:30", 1))
+        createReservation(token, fixedSeatRequest(labId("LAB-B"), "09:15", "10:50", 1))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409));
 
@@ -245,21 +245,22 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void fixedSeatAcceptsEndOfDay24() throws Exception {
+    void fixedSeatAcceptsTheLastEveningPeriodWhenTheLabOpensIt() throws Exception {
         long labId = labId("LAB-A");
         jdbcTemplate.update("""
-                UPDATE t_time_rule SET close_time = '24:00:00'
+                UPDATE t_time_rule
+                SET close_time = '20:50:00', open_end_period = 13
                 WHERE lab_id = ? AND day_of_week = 1
                 """, labId);
         String token = loginAndGetToken("20240001", "Lab@2026");
 
-        JsonNode created = createReservation(token, fixedSeatRequest(labId, "22:00", "24:00", 1))
+        JsonNode created = createReservation(token, fixedSeatRequest(labId, "20:05", "20:50", 1))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.windowEnd").value("24:00:00"))
-                .andExpect(jsonPath("$.data.endTime").value("2026-11-03T00:00:00"))
+                .andExpect(jsonPath("$.data.windowEnd").value("20:50:00"))
+                .andExpect(jsonPath("$.data.endTime").value("2026-11-02T20:50:00"))
                 .andReturn();
         long reservationId = created.path("data").path("resvId").asLong();
-        long expectedMask = TimeSlotMask.between(LocalTime.of(22, 0), LocalTime.MIDNIGHT).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(20, 5), LocalTime.of(20, 50)).value();
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_reservation_seat rs
                 JOIN t_seat_bitmap b ON b.seat_id = rs.seat_id AND b.bitmap_date = ?
@@ -272,7 +273,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         String token = loginAndGetToken("20240001", "Lab@2026");
         long firstLabId = labId("LAB-A");
         long secondLabId = labId("LAB-B");
-        Map<String, Object> request = schedulableRequest("SEAT", 1, 60);
+        Map<String, Object> request = schedulableRequest("SEAT", 1, 2);
         request.put("preferences", Map.of(
                 "allowedLabIds", java.util.List.of(firstLabId, secondLabId),
                 "minSpecLevel", "HIGH"));
@@ -281,7 +282,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("PENDING_SCHEDULE"))
                 .andExpect(jsonPath("$.data.allocationMode").value("SCHEDULABLE"))
-                .andExpect(jsonPath("$.data.durationMinutes").value(60))
+                .andExpect(jsonPath("$.data.durationMinutes").value(90))
                 .andExpect(jsonPath("$.data.seats.length()").value(0))
                 .andReturn();
         JsonNode data = created.path("data");
@@ -312,7 +313,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void schedulableRoomCanUseOptionalLabCandidateWithNullSeatCount() throws Exception {
         String token = loginAndGetToken("T1001", "Lab@2026");
-        Map<String, Object> request = schedulableRequest("ROOM", 20, 120);
+        Map<String, Object> request = schedulableRequest("ROOM", 20, 4);
         request.put("labId", labId("LAB-A"));
 
         JsonNode created = createReservation(token, request)
@@ -327,24 +328,24 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(ints = {20, 250, 90})
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 14, 6})
     void schedulableRejectsInvalidDuration(int duration) throws Exception {
         String token = loginAndGetToken("20240001", "Lab@2026");
         Map<String, Object> request = schedulableRequest("SEAT", 1, duration);
-        if (duration == 90) {
-            request.put("windowEnd", "09:00");
+        if (duration == 6) {
+            request.put("windowEnd", "09:15");
         }
 
         createReservation(token, request)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
-                        org.hamcrest.Matchers.containsString("时长")));
+                        org.hamcrest.Matchers.containsString("节")));
     }
 
     @Test
     void schedulableFiltersCapacityUnsuitableCandidates() throws Exception {
         String token = loginAndGetToken("T1001", "Lab@2026");
-        Map<String, Object> request = schedulableRequest("ROOM", 21, 60);
+        Map<String, Object> request = schedulableRequest("ROOM", 21, 2);
         request.put("preferences", Map.of(
                 "allowedLabIds", java.util.List.of(labId("LAB-A"), labId("LAB-B"))));
 
@@ -361,7 +362,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
                 WHERE lab_id = ? AND day_of_week = 1
                 """, labId("LAB-A"));
         String token = loginAndGetToken("20240001", "Lab@2026");
-        Map<String, Object> request = schedulableRequest("SEAT", 1, 60);
+        Map<String, Object> request = schedulableRequest("SEAT", 1, 2);
         request.put("preferences", Map.of(
                 "allowedLabIds", java.util.List.of(labId("LAB-A"), labId("LAB-B"))));
 
@@ -373,7 +374,7 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void schedulableRejectsUnknownCandidateLaboratory() throws Exception {
         String token = loginAndGetToken("20240001", "Lab@2026");
-        Map<String, Object> request = schedulableRequest("SEAT", 1, 60);
+        Map<String, Object> request = schedulableRequest("SEAT", 1, 2);
         request.put("preferences", Map.of("allowedLabIds", java.util.List.of(999999999L)));
 
         createReservation(token, request)
@@ -385,9 +386,9 @@ class ReservationIntegrationTest extends AbstractIntegrationTest {
         Map<String, Object> request = new HashMap<>();
         request.put("allocationMode", "SCHEDULABLE");
         request.put("date", DATE.toString());
-        request.put("windowStart", "08:00");
-        request.put("windowEnd", "12:00");
-        request.put("durationMinutes", duration);
+        request.put("windowStart", "08:30");
+        request.put("windowEnd", "12:30");
+        request.put("durationPeriods", duration);
         request.put("reservationMode", mode);
         request.put("attendeeCount", attendees);
         if ("SEAT".equals(mode)) {

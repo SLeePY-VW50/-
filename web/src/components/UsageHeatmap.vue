@@ -38,7 +38,7 @@ function render() {
         return `${dates[value[1]]}<br/>${hour}:${value[0] % 2 ? '30' : '00'} · ${(value[2] * 100).toFixed(1)}%`
       },
     },
-    xAxis: { type: 'category', data: Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`), axisLabel: { color: chartPalette.muted, interval: 5, rotate: 45, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 10 }, splitArea: { show: false } },
+    xAxis: { type: 'category', data: (props.days.find((day) => day.slots.length)?.slots ?? []).map((slot) => slot.start), axisLabel: { color: chartPalette.muted, interval: 0, rotate: 45, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 10 }, splitArea: { show: false } },
     yAxis: { type: 'category', data: dates, axisLabel: { color: chartPalette.muted, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 11 } },
     visualMap: { min: 0, max: 1, calculable: false, orient: 'horizontal', left: 'center', bottom: 4, text: ['100%', '0'], textStyle: { color: chartPalette.muted, fontSize: 11 }, inRange: { color: [chartPalette.paper, chartPalette.wash, chartPalette.mid, chartPalette.pine] } },
     series: [{ type: 'heatmap', data: values, itemStyle: { borderColor: chartPalette.paper, borderWidth: 1 }, emphasis: { itemStyle: { borderColor: chartPalette.amber, borderWidth: 2 } } }],

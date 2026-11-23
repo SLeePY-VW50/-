@@ -1,6 +1,8 @@
 package com.campus.lab.schedule;
 
 import com.campus.lab.common.DayTimes;
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ReservationMode;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.reservation.SeatSnapshot;
@@ -38,12 +40,15 @@ public class ScheduleRepository {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final RuleValidator ruleValidator;
+    private final PeriodCatalog periodCatalog;
 
     public ScheduleRepository(
-            JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, RuleValidator ruleValidator) {
+            JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, RuleValidator ruleValidator,
+            PeriodCatalog periodCatalog) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.ruleValidator = ruleValidator;
+        this.periodCatalog = periodCatalog;
     }
 
     public List<LocalDate> listScheduleDates() {
@@ -63,7 +68,7 @@ public class ScheduleRepository {
     public ScheduleSnapshot loadSnapshot(LocalDate date) {
         List<ScheduleDemand> demands = jdbcTemplate.query("""
                 SELECT r.resv_id, r.user_id, r.created_at, r.request_date,
-                       r.request_window_start, r.request_window_end, r.requested_duration_minutes,
+                       r.request_window_start, r.request_window_end, r.requested_periods,
                        r.reservation_mode, r.attendee_count, r.seat_count,
                        u.credit_score, r.preferences
                 FROM t_reservation r
@@ -143,29 +148,24 @@ public class ScheduleRepository {
                 }, queryArguments(date, orderedLabIds));
         Map<Long, EffectiveTimeRule> rules = jdbcTemplate.query("""
                 SELECT rule_id, lab_id, day_of_week, open_time, close_time,
-                       min_duration_minutes, max_duration_minutes, advance_min_days, advance_max_days
+                       open_start_period, open_end_period, min_periods, max_periods,
+                       advance_min_days, advance_max_days
                 FROM t_time_rule WHERE day_of_week = ? AND lab_id IN (""" + placeholders + ") ORDER BY lab_id",
                 rs -> {
                     Map<Long, EffectiveTimeRule> values = new java.util.HashMap<>();
                     while (rs.next()) {
                         long labId = rs.getLong("lab_id");
-                        values.put(labId, ruleValidator.merge(new TimeRule(
-                                rs.getLong("rule_id"), labId, rs.getInt("day_of_week"),
-                                DayTimes.parseDatabaseTime(rs.getString("open_time")),
-                                DayTimes.parseDatabaseTime(rs.getString("close_time")),
-                                rs.getObject("min_duration_minutes", Integer.class),
-                                rs.getObject("max_duration_minutes", Integer.class),
-                                rs.getObject("advance_min_days", Integer.class),
-                                rs.getObject("advance_max_days", Integer.class)), global));
+                        values.put(labId, ruleValidator.merge(mapRule(rs), global));
                     }
                     return values;
                 }, queryArguments(date.getDayOfWeek().getValue(), orderedLabIds));
         return labs.stream().map(lab -> {
             EffectiveTimeRule rule = rules.get(lab.labId());
+            PeriodSchedule schedule = periodCatalog.forLab(lab.labId());
             return new ScheduleLabResource(
-                    lab.labId(), date, lab.status(), lab.capacity(), openMask(rule),
+                    lab.labId(), date, lab.status(), lab.capacity(), openMask(rule, schedule),
                     roomMasks.getOrDefault(lab.labId(), 0L),
-                    seatsByLab.getOrDefault(lab.labId(), List.of()), rule);
+                    seatsByLab.getOrDefault(lab.labId(), List.of()), rule, schedule);
         }).toList();
     }
 
@@ -193,7 +193,7 @@ public class ScheduleRepository {
                 rs.getObject("created_at", LocalDateTime.class),
                 rs.getObject("request_date", LocalDate.class),
                 DayTimes.minuteOfDay(windowStart, false), DayTimes.minuteOfDay(windowEnd, true),
-                rs.getInt("requested_duration_minutes"), mode, rs.getInt("attendee_count"),
+                rs.getInt("requested_periods"), mode, rs.getInt("attendee_count"),
                 mode == ReservationMode.SEAT ? rs.getInt("seat_count") : 0,
                 rs.getInt("credit_score"), preferences.minSpecLevel(), preferences.zoneCode(),
                 Boolean.TRUE.equals(preferences.nearWindow()), Set.copyOf(preferences.allowedLabIds()));
@@ -214,18 +214,12 @@ public class ScheduleRepository {
             long labId, LocalDate date, ReservationRuleConfig global, boolean forUpdate) {
         String sql = """
                 SELECT rule_id, lab_id, day_of_week, open_time, close_time,
-                       min_duration_minutes, max_duration_minutes, advance_min_days, advance_max_days
+                       open_start_period, open_end_period, min_periods, max_periods,
+                       advance_min_days, advance_max_days
                 FROM t_time_rule WHERE lab_id = ? AND day_of_week = ?
                 """ + (forUpdate ? " FOR UPDATE" : "");
-        List<EffectiveTimeRule> rules = jdbcTemplate.query(sql, (rs, rowNum) -> ruleValidator.merge(
-                new TimeRule(
-                        rs.getLong("rule_id"), rs.getLong("lab_id"), rs.getInt("day_of_week"),
-                        DayTimes.parseDatabaseTime(rs.getString("open_time")),
-                        DayTimes.parseDatabaseTime(rs.getString("close_time")),
-                        rs.getObject("min_duration_minutes", Integer.class),
-                        rs.getObject("max_duration_minutes", Integer.class),
-                        rs.getObject("advance_min_days", Integer.class),
-                        rs.getObject("advance_max_days", Integer.class)), global),
+        List<EffectiveTimeRule> rules = jdbcTemplate.query(sql,
+                (rs, rowNum) -> ruleValidator.merge(mapRule(rs), global),
                 labId, date.getDayOfWeek().getValue());
         return rules.isEmpty() ? null : rules.getFirst();
     }
@@ -234,7 +228,7 @@ public class ScheduleRepository {
         Map<String, String> values = jdbcTemplate.query("""
                 SELECT config_key, config_value FROM t_sys_config
                 WHERE config_key IN (
-                    'reservation.duration.min.minutes', 'reservation.duration.max.minutes',
+                    'reservation.duration.min.periods', 'reservation.duration.max.periods',
                     'reservation.advance.min.days', 'reservation.advance.max.days')
                 """, rs -> {
             Map<String, String> config = new java.util.HashMap<>();
@@ -244,8 +238,8 @@ public class ScheduleRepository {
             return config;
         });
         return new ReservationRuleConfig(
-                requiredConfig(values, "reservation.duration.min.minutes"),
-                requiredConfig(values, "reservation.duration.max.minutes"),
+                requiredConfig(values, "reservation.duration.min.periods"),
+                requiredConfig(values, "reservation.duration.max.periods"),
                 requiredConfig(values, "reservation.advance.min.days"),
                 requiredConfig(values, "reservation.advance.max.days"));
     }
@@ -258,17 +252,24 @@ public class ScheduleRepository {
         return Integer.parseInt(value);
     }
 
-    static long openMask(EffectiveTimeRule rule) {
-        if (rule == null || rule.openTime() == null || rule.closeTime() == null) {
+    static long openMask(EffectiveTimeRule rule, PeriodSchedule schedule) {
+        if (rule == null || rule.openTime() == null || rule.closeTime() == null || schedule == null) {
             return 0;
         }
-        int start = DayTimes.minuteOfDay(rule.openTime(), false) / 30;
-        int end = DayTimes.minuteOfDay(rule.closeTime(), true) / 30;
-        long mask = 0;
-        for (int slot = start; slot < end; slot++) {
-            mask |= 1L << slot;
-        }
-        return mask;
+        return schedule.bookableMask(
+                rule.openTime(), rule.closeTime(), rule.openStartPeriod(), rule.openEndPeriod());
+    }
+
+    private static TimeRule mapRule(ResultSet rs) throws SQLException {
+        return new TimeRule(
+                rs.getLong("rule_id"), rs.getLong("lab_id"), rs.getInt("day_of_week"),
+                DayTimes.parseDatabaseTime(rs.getString("open_time")),
+                DayTimes.parseDatabaseTime(rs.getString("close_time")),
+                rs.getInt("open_start_period"), rs.getInt("open_end_period"),
+                rs.getObject("min_periods", Integer.class),
+                rs.getObject("max_periods", Integer.class),
+                rs.getObject("advance_min_days", Integer.class),
+                rs.getObject("advance_max_days", Integer.class));
     }
 
     public AlgorithmType primaryAlgorithm() {
@@ -358,8 +359,8 @@ public class ScheduleRepository {
     public void insertResult(
             long taskId, long reservationId, ScheduleSeatedAssignment assignment,
             LocalDate date, String candidateSeatAllocations) {
-        LocalDateTime start = assignment == null ? null : slotTime(date, assignment.startSlot());
-        LocalDateTime end = assignment == null ? null : slotTime(date, assignment.endSlot());
+        LocalDateTime start = assignment == null ? null : slotTime(date, assignment.labId(), assignment.startSlot(), false);
+        LocalDateTime end = assignment == null ? null : slotTime(date, assignment.labId(), assignment.endSlot(), true);
         jdbcTemplate.update("""
                 INSERT INTO t_schedule_result
                     (task_id, resv_id, assigned_lab_id, assigned_start_time, assigned_end_time,
@@ -455,8 +456,10 @@ public class ScheduleRepository {
         }
     }
 
-    private static LocalDateTime slotTime(LocalDate date, int slot) {
-        return date.atStartOfDay().plusMinutes(slot * 30L);
+    private LocalDateTime slotTime(LocalDate date, long labId, int slot, boolean end) {
+        PeriodSchedule schedule = periodCatalog.forLab(labId);
+        LocalTime time = end ? schedule.endTime(slot) : schedule.startTime(slot);
+        return date.atTime(time);
     }
 
     public record DemandSnapshot(LocalDate date, List<ScheduleDemand> demands) {

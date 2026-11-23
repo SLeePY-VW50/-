@@ -42,10 +42,10 @@ class ReservationMigrationUpgradeIntegrationTest {
                              request_window_start, request_window_end, requested_duration_minutes,
                              lab_id, start_time, end_time, attendee_count, purpose, status)
                         VALUES
-                            (1, 1, 'FIXED', 'SEAT', '2026-11-02', '09:00:00', '10:00:00', 60,
-                             1, '2026-11-02 09:00:00', '2026-11-02 10:00:00', 1,
+                            (1, 1, 'FIXED', 'SEAT', '2026-11-02', '09:15:00', '10:00:00', 45,
+                             1, '2026-11-02 09:15:00', '2026-11-02 10:00:00', 1,
                              '历史正式分配SEAT', 'APPROVED'),
-                            (2, 1, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:00:00', '12:00:00', 60,
+                            (2, 1, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:30:00', '12:30:00', 60,
                              NULL, NULL, NULL, 2, '历史待排期SEAT', 'PENDING_SCHEDULE')
                         """);
                 statement.executeUpdate("""
@@ -71,7 +71,8 @@ class ReservationMigrationUpgradeIntegrationTest {
                         versions.add(resultSet.getString(1));
                     }
                 }
-                assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+                assertThat(versions).containsExactly(
+                        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
                 assertThat(queryInt(statement, """
                         SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
                         WHERE table_schema = DATABASE()
@@ -124,8 +125,8 @@ class ReservationMigrationUpgradeIntegrationTest {
                              request_window_start, request_window_end, requested_duration_minutes,
                              lab_id, start_time, end_time, attendee_count, seat_count, purpose, status)
                         VALUES
-                            (3, 1, 'FIXED', 'SEAT', '2026-11-03', '09:00:00', '10:00:00', 60,
-                             1, '2026-11-03 09:00:00', '2026-11-03 10:00:00', 2, 1,
+                            (3, 1, 'FIXED', 'SEAT', '2026-11-03', '09:15:00', '10:00:00', 45,
+                             1, '2026-11-03 09:15:00', '2026-11-03 10:00:00', 2, 1,
                              '人数与seatCount不一致', 'APPROVED')
                         """)).hasMessageContaining("ck_t_reservation_seat_count");
                 statement.executeUpdate("""
@@ -152,7 +153,7 @@ class ReservationMigrationUpgradeIntegrationTest {
                         SELECT COUNT(*) FROM information_schema.tables
                         WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
                           AND table_name <> 'flyway_schema_history'
-                        """)).isEqualTo(23);
+                        """)).isEqualTo(31);
             }
         } finally {
             dropDedicatedDatabase(administratorPassword);
@@ -174,8 +175,8 @@ class ReservationMigrationUpgradeIntegrationTest {
                              request_window_start, request_window_end, requested_duration_minutes,
                              lab_id, start_time, end_time, attendee_count, purpose, status)
                         VALUES
-                            (1, 1, 'FIXED', 'SEAT', '2026-11-02', '09:00:00', '10:00:00', 60,
-                             1, '2026-11-02 09:00:00', '2026-11-02 10:00:00', 2,
+                            (1, 1, 'FIXED', 'SEAT', '2026-11-02', '09:15:00', '10:00:00', 45,
+                             1, '2026-11-02 09:15:00', '2026-11-02 10:00:00', 2,
                              '历史人数分配不一致SEAT', 'APPROVED')
                         """);
                 statement.executeUpdate("""
@@ -214,9 +215,9 @@ class ReservationMigrationUpgradeIntegrationTest {
                              request_window_start, request_window_end, requested_duration_minutes,
                              lab_id, start_time, end_time, attendee_count, purpose, status)
                         VALUES
-                            (1, 1, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:00:00', '12:00:00', 60,
+                            (1, 1, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:30:00', '12:30:00', 60,
                              NULL, NULL, NULL, 2, '历史取消无分配SEAT', 'CANCELLED'),
-                            (2, 1, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:00:00', '12:00:00', 60,
+                            (2, 1, 'SCHEDULABLE', 'SEAT', '2026-11-02', '08:30:00', '12:30:00', 60,
                              NULL, NULL, NULL, 1, '历史过期无分配SEAT', 'EXPIRED')
                         """);
             }

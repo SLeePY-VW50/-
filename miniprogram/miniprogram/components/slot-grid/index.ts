@@ -6,14 +6,14 @@ function todayText(date = new Date()) {
 }
 
 function conflictIndexes(slots: SlotAvailability[], selection: SlotRange | null, index: number,
-  mode: 'ROOM' | 'SEAT', openTime: string, closeTime: string) {
+  mode: 'ROOM' | 'SEAT') {
   if (!selection || selection.end !== null) return []
   const start = Math.min(selection.start, index)
   const end = Math.max(selection.start, index)
   const blocked: number[] = []
   for (let cursor = start; cursor <= end; cursor++) {
     const item = slots[cursor]
-    if (!item || !slotAvailable(item, mode, openTime, closeTime)) blocked.push(item?.index ?? cursor)
+    if (!item || !slotAvailable(item, mode)) blocked.push(item?.index ?? cursor)
   }
   return blocked
 }
@@ -62,10 +62,10 @@ Component({
       const slots = this.data.slots as SlotAvailability[]
       const selection = this.data.selection as SlotRange | null
       const mode = this.data.mode as 'ROOM' | 'SEAT'
-      const result = chooseSlot(slots, selection, index, mode, this.data.openTime, this.data.closeTime)
+      const result = chooseSlot(slots, selection, index, mode)
       if (result.error) {
         wx.showToast({ title: result.error, icon: 'none' })
-        this.setData({ conflict: conflictIndexes(slots, selection, index, mode, this.data.openTime, this.data.closeTime) })
+        this.setData({ conflict: conflictIndexes(slots, selection, index, mode) })
         return
       }
       this.setData({ conflict: [] })

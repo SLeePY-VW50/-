@@ -1,6 +1,7 @@
 package com.campus.lab.reservation;
 
 import com.campus.lab.common.BusinessException;
+import com.campus.lab.common.DayTimes;
 import com.campus.lab.reservation.dto.ReservationSeatView;
 import com.campus.lab.reservation.dto.ReservationView;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,6 +47,25 @@ public class ReservationRepository {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "用户不存在或不可用");
         }
         return users.getFirst();
+    }
+
+    public UserAdmission findUser(long userId) {
+        List<UserAdmission> users = jdbcTemplate.query("""
+                SELECT status, credit_score FROM sys_user WHERE user_id = ?
+                """, (rs, rowNum) -> new UserAdmission(rs.getString(1), rs.getInt(2)), userId);
+        return users.isEmpty() ? null : users.getFirst();
+    }
+
+    public List<OccupiedWindow> effectiveWindows(long userId, LocalDate date) {
+        return jdbcTemplate.query("""
+                SELECT request_window_start, request_window_end
+                FROM t_reservation
+                WHERE user_id = ? AND request_date = ?
+                  AND status IN ('PENDING_SCHEDULE', 'APPROVED', 'IN_USE')
+                """, (rs, rowNum) -> new OccupiedWindow(
+                        DayTimes.minuteOfDay(DayTimes.parseDatabaseTime(rs.getString(1)), false),
+                        DayTimes.minuteOfDay(DayTimes.parseDatabaseTime(rs.getString(2)), true)),
+                userId, date);
     }
 
     public int creditThreshold() {
@@ -189,9 +209,9 @@ public class ReservationRepository {
                 INSERT INTO t_reservation
                     (user_id, batch_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
-                     lab_id, start_time, end_time, attendee_count, seat_count,
+                     requested_periods, lab_id, start_time, end_time, attendee_count, seat_count,
                      purpose, preferences, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -204,14 +224,15 @@ public class ReservationRepository {
             statement.setString(6, requestTime(request.startTime(), false));
             statement.setString(7, requestTime(request.endTime(), true));
             statement.setInt(8, request.durationMinutes());
-            setNullableLong(statement, 9, finalLabId);
-            setNullableTimestamp(statement, 10, finalStart);
-            setNullableTimestamp(statement, 11, finalEnd);
-            statement.setInt(12, request.attendeeCount());
-            setNullableInteger(statement, 13, finalSeatCount);
-            statement.setString(14, request.purpose());
-            statement.setString(15, preferencesJson(request));
-            statement.setString(16, status.name());
+            statement.setInt(9, request.periodCount());
+            setNullableLong(statement, 10, finalLabId);
+            setNullableTimestamp(statement, 11, finalStart);
+            setNullableTimestamp(statement, 12, finalEnd);
+            statement.setInt(13, request.attendeeCount());
+            setNullableInteger(statement, 14, finalSeatCount);
+            statement.setString(15, request.purpose());
+            statement.setString(16, preferencesJson(request));
+            statement.setString(17, status.name());
             return statement;
         }, keyHolder);
         Number key = keyHolder.getKey();
@@ -364,8 +385,28 @@ public class ReservationRepository {
         return jdbcTemplate.update("""
                 UPDATE t_reservation SET status = 'NO_SHOW'
                 WHERE resv_id = ? AND status = 'APPROVED' AND checkin_time IS NULL
+                  AND occupancy_source = 'PERSONAL'
                   AND start_time < DATE_SUB(?, INTERVAL ? MINUTE)
                 """, reservationId, Timestamp.valueOf(now), graceMinutes);
+    }
+
+    public boolean isTimetableReservation(long reservationId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM t_reservation
+                WHERE resv_id = ? AND occupancy_source = 'TIMETABLE'
+                """, Integer.class, reservationId);
+        return count != null && count > 0;
+    }
+
+    public int checkinTimetableReservation(
+            long reservationId, long labId, LocalDateTime checkinTime,
+            com.campus.lab.checkin.CheckinChannel channel) {
+        return jdbcTemplate.update("""
+                UPDATE t_reservation
+                SET status = 'IN_USE', checkin_time = ?, checkin_channel = ?
+                WHERE resv_id = ? AND lab_id = ? AND status = 'APPROVED'
+                  AND occupancy_source = 'TIMETABLE'
+                """, Timestamp.valueOf(checkinTime), channel.name(), reservationId, labId);
     }
 
     public int completeEndedReservation(long reservationId, LocalDateTime now) {
@@ -644,6 +685,9 @@ public class ReservationRepository {
     }
 
     public record UserAdmission(String status, int creditScore) {
+    }
+
+    public record OccupiedWindow(int startMinute, int endMinute) {
     }
 
     public record LabDetails(long labId, String name, int capacity, ResourceStatus status) {

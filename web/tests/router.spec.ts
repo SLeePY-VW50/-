@@ -31,7 +31,7 @@ describe('路由守卫', () => {
 
   it('LAB_ADMIN可查询业务页面但不能进入系统管理或AI页面', async () => {
     useAuthStore().setAuth('token', user(['LAB_ADMIN']))
-    for (const path of ['/labs', '/reservations', '/schedules', '/statistics']) {
+    for (const path of ['/labs', '/reservations', '/schedules', '/statistics', '/timetable']) {
       await router.push(path)
       expect(router.currentRoute.value.path).toBe(path)
     }

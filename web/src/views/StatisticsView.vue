@@ -71,13 +71,13 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); trendChart
 
 <template>
   <div class="page">
-    <header class="page-header"><div><span class="eyebrow">计划与实际对照</span><h1>实验室使用统计</h1><p>48时间片热力图与趋势完全由统计数据生成，可切换计划和实际口径。</p></div><button class="button" type="button" :disabled="!labId || downloading" @click="downloadCsv">{{ downloading ? '正在导出…' : '下载预约CSV' }}</button></header>
+    <header class="page-header"><div><span class="eyebrow">计划与实际对照</span><h1>实验室使用统计</h1><p>节次热力图与趋势完全由统计数据生成，可切换计划和实际口径。</p></div><button class="button" type="button" :disabled="!labId || downloading" @click="downloadCsv">{{ downloading ? '正在导出…' : '下载预约CSV' }}</button></header>
     <div v-if="error" class="error-banner" role="alert">{{ error }}</div>
     <section class="panel"><div class="toolbar"><label class="field"><span>实验室</span><select v-model.number="labId"><option v-for="lab in labs" :key="lab.labId" :value="lab.labId">{{ lab.name }}</option></select></label><label class="field"><span>开始日期</span><input v-model="start" type="date"></label><label class="field"><span>结束日期</span><input v-model="end" type="date"></label><button class="button button--primary" type="button" @click="load">查询统计</button></div>
       <div class="statistics-switch" role="group" aria-label="热力图口径"><button type="button" :class="{ active: mode === 'planned' }" :aria-pressed="mode === 'planned'" @click="mode = 'planned'">计划利用率</button><button type="button" :class="{ active: mode === 'actual' }" :aria-pressed="mode === 'actual'" @click="mode = 'actual'">实际利用率</button></div>
       <div v-if="loading" class="loading-line">正在计算热力图</div><EmptyState v-else-if="!error && (!days.length || days.every((day) => !day.slots.length))" title="该范围内没有热力图数据" description="调整实验室或日期范围；空数据不会生成模拟色块。" /><UsageHeatmap v-else :days="days" :mode="mode" />
     </section>
-    <section v-if="days.length" class="panel"><div class="panel__header"><div><h2>日期趋势</h2><span class="panel__subtitle">每日48格比率的算术平均，空日按0显示</span></div></div><div ref="trendElement" class="chart" /></section>
+    <section v-if="days.length" class="panel"><div class="panel__header"><div><h2>日期趋势</h2><span class="panel__subtitle">每日节次比率的算术平均，空日按0显示</span></div></div><div ref="trendElement" class="chart" /></section>
   </div>
 </template>
 

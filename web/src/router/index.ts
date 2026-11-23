@@ -25,6 +25,7 @@ const router = createRouter({
         { path: 'reservations', name: 'reservations', component: () => import('../views/ReservationsView.vue'), meta: { title: '预约记录', roles: ['STUDENT', 'TEACHER', 'LAB_ADMIN', 'SYS_ADMIN'] } },
         { path: 'assistant', name: 'assistant', component: () => import('../views/AssistantView.vue'), meta: { title: 'AI预约助手', roles: ['STUDENT', 'TEACHER'] } },
         { path: 'schedules', name: 'schedules', component: () => import('../views/ScheduleView.vue'), meta: { title: '排程与对比实验', roles: ['LAB_ADMIN', 'SYS_ADMIN'] } },
+        { path: 'timetable', name: 'timetable', component: () => import('../views/admin/TimetableView.vue'), meta: { title: '课表占用', roles: ['LAB_ADMIN', 'SYS_ADMIN'] } },
         { path: 'statistics', name: 'statistics', component: () => import('../views/StatisticsView.vue'), meta: { title: '使用统计', roles: ['TEACHER', 'LAB_ADMIN', 'SYS_ADMIN'] } },
         { path: 'credit', name: 'credit', component: () => import('../views/CreditView.vue'), meta: { title: '信用与申诉', roles: ['STUDENT', 'TEACHER'] } },
         { path: 'admin/resources', name: 'admin-resources', component: () => import('../views/admin/ResourcesView.vue'), meta: { title: '资源管理', roles: ['SYS_ADMIN'] } },

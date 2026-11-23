@@ -1,12 +1,12 @@
 package com.campus.lab.resource;
 
 public record ReservationRuleConfig(
-        int minDurationMinutes,
-        int maxDurationMinutes,
+        int minPeriods,
+        int maxPeriods,
         int advanceMinDays,
         int advanceMaxDays) {
 
     public ReservationRuleConfig {
-        RuleValidator.validateDurationRange(minDurationMinutes, maxDurationMinutes);
+        RuleValidator.validatePeriodRange(minPeriods, maxPeriods);
     }
 }

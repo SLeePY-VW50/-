@@ -36,8 +36,9 @@ class ScheduleWorkerTest {
             verify(service, timeout(1000).times(1)).runDueBatches();
             finish.countDown();
             assertThat(finished.await(30, TimeUnit.SECONDS)).isTrue();
+            Thread.sleep(50);
             worker.run();
-            verify(service, timeout(30_000).times(2)).runDueBatches();
+            verify(service, timeout(1_000).times(2)).runDueBatches();
         } finally {
             finish.countDown();
             executor.shutdownNow();

@@ -129,7 +129,7 @@ class ReservationSnapshotIsolationIntegrationTest extends AbstractReservationNon
         assertThat(roomOutcome.conflict().getStatus().value()).isEqualTo(409);
         assertThat(roomOutcome.reservationId()).isNull();
 
-        long expectedMask = TimeSlotMask.between(LocalTime.of(9, 0), LocalTime.of(10, 0)).value();
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(LocalTime.of(9, 15), LocalTime.of(10, 0)).value();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_reservation WHERE lab_id = ?", Integer.class, labId))
                 .isEqualTo(1);
@@ -178,13 +178,13 @@ class ReservationSnapshotIsolationIntegrationTest extends AbstractReservationNon
     }
 
     private NormalizedReservation request(ReservationMode mode) {
-        LocalTime start = LocalTime.of(9, 0);
+        LocalTime start = LocalTime.of(9, 15);
         LocalTime end = LocalTime.of(10, 0);
         int attendees = mode == ReservationMode.ROOM ? 2 : 1;
         return new NormalizedReservation(
-                AllocationMode.FIXED, labId, DATE, start, end, 60, mode, attendees,
+                AllocationMode.FIXED, labId, DATE, start, end, 45, 1, mode, attendees,
                 mode == ReservationMode.SEAT ? 1 : null, "确定性快照隔离测试",
-                ReservationPreferences.empty(), TimeSlotMask.between(start, end));
+                ReservationPreferences.empty(), com.campus.lab.period.DongfangPeriodTable.schedule().between(start, end));
     }
 
     private record Outcome(Long reservationId, BusinessException conflict, Throwable error) {

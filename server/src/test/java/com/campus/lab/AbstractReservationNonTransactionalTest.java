@@ -129,7 +129,7 @@ public abstract class AbstractReservationNonTransactionalTest {
         for (int day = 1; day <= 7; day++) {
             jdbcTemplate.update("""
                     INSERT INTO t_time_rule (lab_id, day_of_week, open_time, close_time)
-                    VALUES (?, ?, '08:00:00', '22:00:00')
+                    VALUES (?, ?, '08:30:00', '17:30:00')
                     """, labId, day);
         }
         return labId;
@@ -165,6 +165,20 @@ public abstract class AbstractReservationNonTransactionalTest {
     }
 
     private void deleteReservationsByUser(long userId) {
+        jdbcTemplate.update("DELETE FROM t_timetable_attendance WHERE user_id = ?", userId);
+        jdbcTemplate.update("""
+                DELETE a FROM t_timetable_attendance a
+                JOIN t_timetable_session s ON s.session_id = a.session_id
+                JOIN t_reservation r ON r.resv_id = s.resv_id
+                WHERE r.user_id = ?
+                """, userId);
+        jdbcTemplate.update("DELETE FROM t_timetable_roster WHERE user_id = ?", userId);
+        jdbcTemplate.update("""
+                DELETE s FROM t_timetable_session s
+                JOIN t_reservation r ON r.resv_id = s.resv_id
+                WHERE r.user_id = ?
+                """, userId);
+        jdbcTemplate.update("DELETE FROM t_lab_admin WHERE user_id = ?", userId);
         jdbcTemplate.update("DELETE FROM t_appeal WHERE user_id = ?", userId);
         jdbcTemplate.update("DELETE FROM t_credit_record WHERE user_id = ?", userId);
         jdbcTemplate.update("DELETE FROM t_violation WHERE user_id = ?", userId);
@@ -181,6 +195,24 @@ public abstract class AbstractReservationNonTransactionalTest {
     }
 
     private void deleteReservationsByLab(long labId) {
+        jdbcTemplate.update("""
+                DELETE a FROM t_timetable_attendance a
+                JOIN t_timetable_session s ON s.session_id = a.session_id
+                JOIN t_timetable_entry e ON e.entry_id = s.entry_id
+                WHERE e.lab_id = ?
+                """, labId);
+        jdbcTemplate.update("""
+                DELETE s FROM t_timetable_session s
+                JOIN t_timetable_entry e ON e.entry_id = s.entry_id
+                WHERE e.lab_id = ?
+                """, labId);
+        jdbcTemplate.update("""
+                DELETE r FROM t_timetable_roster r
+                JOIN t_timetable_entry e ON e.entry_id = r.entry_id
+                WHERE e.lab_id = ?
+                """, labId);
+        jdbcTemplate.update("DELETE FROM t_timetable_entry WHERE lab_id = ?", labId);
+        jdbcTemplate.update("DELETE FROM t_lab_admin WHERE lab_id = ?", labId);
         jdbcTemplate.update("""
                 DELETE l FROM t_reservation_log l
                 JOIN t_reservation r ON r.resv_id = l.resv_id WHERE r.lab_id = ?

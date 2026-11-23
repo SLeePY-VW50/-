@@ -188,7 +188,7 @@ class ScheduleRecoveryIntegrationTest extends AbstractScheduleIntegrationTest {
                 "SELECT start_time FROM t_reservation WHERE resv_id = ?", LocalDateTime.class, pendingId);
         LocalDateTime end = jdbcTemplate.queryForObject(
                 "SELECT end_time FROM t_reservation WHERE resv_id = ?", LocalDateTime.class, pendingId);
-        long expectedMask = com.campus.lab.reservation.TimeSlotMask.between(
+        long expectedMask = com.campus.lab.period.DongfangPeriodTable.schedule().between(
                 start.toLocalTime(), end.toLocalTime()).value();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT mask FROM t_seat_bitmap WHERE seat_id = ? AND bitmap_date = ?",
@@ -201,7 +201,7 @@ class ScheduleRecoveryIntegrationTest extends AbstractScheduleIntegrationTest {
         long pendingUserId = userIdByAccount(createTestAccount("STUDENT"));
         long fixedUserId = userIdByAccount(createTestAccount("STUDENT"));
         long firstPendingId = createPending(pendingUserId, labId, DATE);
-        long fixedId = createFixed(fixedUserId, labId, DATE, "09:00", "12:00");
+        long fixedId = createFixed(fixedUserId, labId, DATE, "09:15", "12:30");
         scheduleService.runBatch(DATE);
         String firstBatchNo = onlyBatchNo();
         long firstPrimaryTaskId = primaryTaskId(firstBatchNo);

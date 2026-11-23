@@ -19,14 +19,15 @@ class DatabaseConstraintIntegrationTest extends AbstractIntegrationTest {
     void flywayAppliesOriginalSchemaReferenceDataAndScheduleIntegrityInOrder() {
         List<String> versions = jdbcTemplate.queryForList(
                 "SELECT version FROM flyway_schema_history ORDER BY installed_rank", String.class);
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
         String descriptions = jdbcTemplate.queryForObject(
                 "SELECT GROUP_CONCAT(description ORDER BY installed_rank) FROM flyway_schema_history",
                 String.class);
         assertThat(descriptions).isEqualTo(
                 "schema,reference data,schedule integrity,reservation seat count,reservation end of day,"
                         + "credit appeal integrity,checkout web channel,reservation lifecycle scan indexes,"
-                        + "schedule publication states,statistics history and indexes");
+                        + "schedule publication states,statistics history and indexes,period slots,"
+                        + "timetable occupancy");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = FALSE", Integer.class))
                 .isZero();

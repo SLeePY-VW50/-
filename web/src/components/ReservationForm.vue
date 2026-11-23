@@ -3,33 +3,44 @@ import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import http, { errorMessage } from '../api/http'
 import { useDraftStore } from '../stores/draft'
 import type { CreateReservationPayload, Lab, Reservation } from '../types'
+import { DONGFANG_PERIODS, DEFAULT_MAX_PERIODS, PERIOD_ENDS, PERIOD_STARTS } from '../periods'
 import { addDays, today, timeOnly } from '../utils'
 import type { SlotRange } from './SlotGrid.vue'
 
-type FieldKey = 'labId' | 'date' | 'purpose' | 'attendeeCount' | 'startTime' | 'endTime' | 'windowStart' | 'windowEnd' | 'durationMinutes' | 'seatCount'
+type FieldKey = 'labId' | 'date' | 'purpose' | 'attendeeCount' | 'startTime' | 'endTime' | 'windowStart' | 'windowEnd' | 'durationPeriods' | 'seatCount'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   labs: Lab[]
   initialLabId?: number | null
   initialDate?: string
   selectedRange?: SlotRange | null
-}>()
+  initialReservationMode?: 'ROOM' | 'SEAT'
+  initialAttendeeCount?: number
+  initialAllocationMode?: 'FIXED' | 'SCHEDULABLE'
+}>(), {
+  initialLabId: null,
+  initialDate: '',
+  selectedRange: null,
+  initialReservationMode: 'ROOM',
+  initialAttendeeCount: 1,
+  initialAllocationMode: 'FIXED',
+})
 const emit = defineEmits<{ submitted: [reservation: Reservation] }>()
 
-const startOptions = Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
-const endOptions = [...startOptions.slice(1), '24:00']
+const startOptions = PERIOD_STARTS
+const endOptions = PERIOD_ENDS
 const form = reactive({
-  allocationMode: 'FIXED' as 'FIXED' | 'SCHEDULABLE',
+  allocationMode: props.initialAllocationMode,
   labId: props.initialLabId ?? null as number | null,
   date: props.initialDate || addDays(today(), 1),
-  startTime: '09:00',
+  startTime: '09:15',
   endTime: '10:00',
-  windowStart: '08:00',
-  windowEnd: '12:00',
-  durationMinutes: 60,
-  reservationMode: 'ROOM' as 'ROOM' | 'SEAT',
-  attendeeCount: 1,
-  seatCount: 1,
+  windowStart: '08:30',
+  windowEnd: '12:30',
+  durationPeriods: 2,
+  reservationMode: props.initialReservationMode,
+  attendeeCount: props.initialAttendeeCount,
+  seatCount: props.initialAttendeeCount,
   purpose: '',
   zoneCode: '',
   nearWindow: '' as '' | 'true' | 'false',
@@ -51,15 +62,15 @@ watch(() => form.reservationMode, (mode) => {
 watch(() => props.selectedRange, (range) => {
   if (!range) return
   form.allocationMode = 'FIXED'
-  form.startTime = startOptions[range.start]
-  form.endTime = endOptions[range.end]
+  form.startTime = DONGFANG_PERIODS[range.start]?.start || form.startTime
+  form.endTime = DONGFANG_PERIODS[range.end]?.end || form.endTime
   clearFieldError('startTime')
   clearFieldError('endTime')
 }, { deep: true, immediate: true })
 
 onMounted(() => {
   const draft = draftStore.takeDraft()
-  if (!draft) return
+  if (!draft || draft.allocationMode !== 'FIXED') return
   form.allocationMode = 'FIXED'
   form.labId = draft.labId
   form.date = draft.date
@@ -98,19 +109,17 @@ function validate() {
     if (start < 0) fieldErrors.startTime = '请选择开始时间'
     if (end < 0) fieldErrors.endTime = '请选择结束时间'
     else if (start >= 0 && end < start) fieldErrors.endTime = '结束时间必须晚于开始时间'
-    else if (start >= 0 && end - start + 1 > 8) fieldErrors.endTime = '固定预约一次最多选择 8 个时间片（4 小时）'
+    else if (start >= 0 && end - start + 1 > DEFAULT_MAX_PERIODS) fieldErrors.endTime = `固定预约一次最多选择 ${DEFAULT_MAX_PERIODS} 节`
   } else {
     const windowStart = startOptions.indexOf(form.windowStart)
     const windowEnd = endOptions.indexOf(form.windowEnd)
     if (windowStart < 0) fieldErrors.windowStart = '请选择窗口开始时间'
     if (windowEnd < 0) fieldErrors.windowEnd = '请选择窗口结束时间'
     else if (windowStart >= 0 && windowEnd < windowStart) fieldErrors.windowEnd = '窗口结束必须晚于窗口开始'
-    if (form.durationMinutes < 30 || form.durationMinutes > 240 || form.durationMinutes % 30 !== 0) {
-      fieldErrors.durationMinutes = '时长须为 30–240 分钟，且为 30 分钟倍数'
-    } else if (windowStart >= 0 && windowEnd >= windowStart) {
-      const windowSlots = windowEnd - windowStart + 1
-      const neededSlots = form.durationMinutes / 30
-      if (neededSlots > windowSlots) fieldErrors.durationMinutes = '所需时长不能超过可调度窗口'
+    if (!Number.isInteger(form.durationPeriods) || form.durationPeriods < 1 || form.durationPeriods > DEFAULT_MAX_PERIODS) {
+      fieldErrors.durationPeriods = `节数须为 1–${DEFAULT_MAX_PERIODS} 节`
+    } else if (windowStart >= 0 && windowEnd >= windowStart && form.durationPeriods > windowEnd - windowStart + 1) {
+      fieldErrors.durationPeriods = '所需节数不能超过可调度窗口'
     }
   }
   const messages = Object.values(fieldErrors).filter(Boolean)
@@ -119,7 +128,7 @@ function validate() {
 
 async function focusFirstInvalid() {
   await nextTick()
-  const order: FieldKey[] = ['labId', 'date', 'startTime', 'endTime', 'windowStart', 'windowEnd', 'durationMinutes', 'attendeeCount', 'seatCount', 'purpose']
+  const order: FieldKey[] = ['labId', 'date', 'startTime', 'endTime', 'windowStart', 'windowEnd', 'durationPeriods', 'attendeeCount', 'seatCount', 'purpose']
   const first = order.find((field) => fieldErrors[field])
   const target = first ? fieldRefs[first] : null
   if (target && 'focus' in target) (target as HTMLElement).focus()
@@ -141,7 +150,7 @@ async function submit() {
     endTime: fixed ? form.endTime : null,
     windowStart: fixed ? null : form.windowStart,
     windowEnd: fixed ? null : form.windowEnd,
-    durationMinutes: fixed ? null : Number(form.durationMinutes),
+    durationPeriods: fixed ? null : Number(form.durationPeriods),
     reservationMode: form.reservationMode,
     attendeeCount: Number(form.attendeeCount),
     seatCount: form.reservationMode === 'SEAT' ? Number(form.seatCount) : null,
@@ -184,7 +193,7 @@ async function submit() {
     <div v-else class="form-grid form-grid--three">
       <label class="field" :class="{ 'field--invalid': fieldErrors.windowStart }"><span>窗口开始</span><select :ref="(el) => setFieldRef('windowStart', el)" v-model="form.windowStart" data-testid="window-start" :aria-invalid="Boolean(fieldErrors.windowStart)" :aria-describedby="fieldErrors.windowStart ? 'error-windowStart' : undefined" @change="clearFieldError('windowStart')"><option v-for="time in startOptions" :key="time">{{ time }}</option></select><span v-if="fieldErrors.windowStart" id="error-windowStart" class="field-error">{{ fieldErrors.windowStart }}</span></label>
       <label class="field" :class="{ 'field--invalid': fieldErrors.windowEnd }"><span>窗口结束</span><select :ref="(el) => setFieldRef('windowEnd', el)" v-model="form.windowEnd" data-testid="window-end" :aria-invalid="Boolean(fieldErrors.windowEnd)" :aria-describedby="fieldErrors.windowEnd ? 'error-windowEnd' : undefined" @change="clearFieldError('windowEnd')"><option v-for="time in endOptions" :key="time">{{ time }}</option></select><span v-if="fieldErrors.windowEnd" id="error-windowEnd" class="field-error">{{ fieldErrors.windowEnd }}</span></label>
-      <label class="field" :class="{ 'field--invalid': fieldErrors.durationMinutes }"><span>所需时长</span><select :ref="(el) => setFieldRef('durationMinutes', el)" v-model.number="form.durationMinutes" data-testid="duration" :aria-invalid="Boolean(fieldErrors.durationMinutes)" :aria-describedby="fieldErrors.durationMinutes ? 'error-durationMinutes' : undefined" @change="clearFieldError('durationMinutes')"><option v-for="minutes in 8" :key="minutes" :value="minutes * 30">{{ minutes * 30 }} 分钟</option></select><span v-if="fieldErrors.durationMinutes" id="error-durationMinutes" class="field-error">{{ fieldErrors.durationMinutes }}</span></label>
+      <label class="field" :class="{ 'field--invalid': fieldErrors.durationPeriods }"><span>所需节数</span><select :ref="(el) => setFieldRef('durationPeriods', el)" v-model.number="form.durationPeriods" data-testid="duration" :aria-invalid="Boolean(fieldErrors.durationPeriods)" :aria-describedby="fieldErrors.durationPeriods ? 'error-durationPeriods' : undefined" @change="clearFieldError('durationPeriods')"><option v-for="count in 5" :key="count" :value="count">{{ count }} 节</option></select><span v-if="fieldErrors.durationPeriods" id="error-durationPeriods" class="field-error">{{ fieldErrors.durationPeriods }}</span></label>
     </div>
     <div class="mode-switch mode-switch--small" role="group" aria-label="预约方式">
       <label :class="{ active: form.reservationMode === 'ROOM' }"><input v-model="form.reservationMode" data-testid="mode-room" type="radio" value="ROOM">整室预约</label>

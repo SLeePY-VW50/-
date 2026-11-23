@@ -1,5 +1,6 @@
 package com.campus.lab.resource;
 
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ResourceStatus;
 import com.campus.lab.reservation.SeatSnapshot;
 import com.campus.lab.reservation.TimeSlotMask;
@@ -27,8 +28,9 @@ public class RuleValidator {
         return new EffectiveTimeRule(
                 laboratoryRule.ruleId(), laboratoryRule.labId(), laboratoryRule.dayOfWeek(),
                 laboratoryRule.openTime(), laboratoryRule.closeTime(),
-                valueOrGlobal(laboratoryRule.minDurationMinutes(), global.minDurationMinutes()),
-                valueOrGlobal(laboratoryRule.maxDurationMinutes(), global.maxDurationMinutes()),
+                laboratoryRule.openStartPeriod(), laboratoryRule.openEndPeriod(),
+                valueOrGlobal(laboratoryRule.minPeriods(), global.minPeriods()),
+                valueOrGlobal(laboratoryRule.maxPeriods(), global.maxPeriods()),
                 valueOrGlobal(laboratoryRule.advanceMinDays(), global.advanceMinDays()),
                 valueOrGlobal(laboratoryRule.advanceMaxDays(), global.advanceMaxDays()));
     }
@@ -37,34 +39,18 @@ public class RuleValidator {
             RuleValidationRequest request,
             ResourceStatus laboratoryStatus,
             EffectiveTimeRule rule,
-            List<SeatSnapshot> laboratorySeats) {
+            List<SeatSnapshot> laboratorySeats,
+            PeriodSchedule schedule) {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(rule, "rule");
         Objects.requireNonNull(laboratorySeats, "laboratorySeats");
-        if (laboratoryStatus != ResourceStatus.ACTIVE) {
-            throw new IllegalArgumentException("实验室当前不可预约");
-        }
-        if (request.labId() != rule.labId()
-                || request.requestDate().getDayOfWeek().getValue() != rule.dayOfWeek()) {
-            throw new IllegalArgumentException("实验室当日没有适用开放规则");
-        }
-        long advanceDays = ChronoUnit.DAYS.between(LocalDate.now(clock), request.requestDate());
-        if (advanceDays < rule.advanceMinDays() || advanceDays > rule.advanceMaxDays()) {
-            throw new IllegalArgumentException("请求日期不在允许的提前预约范围内");
-        }
-
-        TimeSlotMask requestMask = TimeSlotMask.between(request.startTime(), request.endTime());
-        int durationMinutes = (requestMask.endSlot() - requestMask.startSlot()) * 30;
-        if (durationMinutes < rule.minDurationMinutes()
-                || durationMinutes > rule.maxDurationMinutes()) {
-            throw new IllegalArgumentException("预约时长不在有效规则范围内");
-        }
-        int startMinute = minuteOfDay(request.startTime());
-        int endMinute = com.campus.lab.common.DayTimes.minuteOfDay(request.endTime(), true);
-        int closeMinute = com.campus.lab.common.DayTimes.minuteOfDay(rule.closeTime(), true);
-        if (startMinute < minuteOfDay(rule.openTime()) || endMinute > closeMinute) {
-            throw new IllegalArgumentException("预约时间超出实验室开放时间");
-        }
+        Objects.requireNonNull(schedule, "schedule");
+        requireActiveLab(laboratoryStatus);
+        requireApplicableDay(request.labId(), request.requestDate(), rule);
+        requireAdvance(request.requestDate(), rule);
+        TimeSlotMask requestMask = covering(schedule, request.startTime(), request.endTime());
+        requirePeriodCount(requestMask.periodCount(), rule);
+        requireBookable(schedule, rule, requestMask);
 
         Map<Long, SeatSnapshot> seatsById = laboratorySeats.stream()
                 .collect(Collectors.toMap(SeatSnapshot::seatId, Function.identity()));
@@ -84,41 +70,73 @@ public class RuleValidator {
             LocalDate requestDate,
             LocalTime windowStart,
             LocalTime windowEnd,
-            int durationMinutes,
+            int periodCount,
             ResourceStatus laboratoryStatus,
-            EffectiveTimeRule rule) {
+            EffectiveTimeRule rule,
+            PeriodSchedule schedule) {
         Objects.requireNonNull(windowStart, "windowStart");
         Objects.requireNonNull(windowEnd, "windowEnd");
         Objects.requireNonNull(rule, "rule");
-        if (laboratoryStatus != ResourceStatus.ACTIVE) {
-            throw new IllegalArgumentException("实验室当前不可预约");
+        Objects.requireNonNull(schedule, "schedule");
+        requireActiveLab(laboratoryStatus);
+        requireApplicableDay(labId, requestDate, rule);
+        requireAdvance(requestDate, rule);
+        requirePeriodCount(periodCount, rule);
+        if (schedule.placements(
+                minute(windowStart),
+                com.campus.lab.common.DayTimes.minuteOfDay(windowEnd, true),
+                periodCount,
+                schedule.bookableMask(
+                        rule.openTime(), rule.closeTime(), rule.openStartPeriod(), rule.openEndPeriod()))
+                .isEmpty()) {
+            throw new IllegalArgumentException("请求窗口与开放节次无法容纳预约节数");
         }
-        if (labId != rule.labId() || requestDate.getDayOfWeek().getValue() != rule.dayOfWeek()) {
-            throw new IllegalArgumentException("实验室当日没有适用开放规则");
+    }
+
+    public static void validatePeriodRange(int minPeriods, int maxPeriods) {
+        if (minPeriods < 1 || minPeriods > maxPeriods || maxPeriods > TimeSlotMask.MAX_BITS) {
+            throw new IllegalArgumentException("有效预约节数必须满足1<=min<=max");
         }
+    }
+
+    private static TimeSlotMask covering(PeriodSchedule schedule, LocalTime start, LocalTime end) {
+        try {
+            return schedule.between(start, end);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("预约起止必须落在节次的开始和结束");
+        }
+    }
+
+    private static void requireBookable(PeriodSchedule schedule, EffectiveTimeRule rule, TimeSlotMask mask) {
+        long open = schedule.bookableMask(
+                rule.openTime(), rule.closeTime(), rule.openStartPeriod(), rule.openEndPeriod());
+        if ((open & mask.value()) != mask.value()) {
+            throw new IllegalArgumentException("预约时间超出实验室开放节次");
+        }
+    }
+
+    private static void requirePeriodCount(int periodCount, EffectiveTimeRule rule) {
+        if (periodCount < rule.minPeriods() || periodCount > rule.maxPeriods()) {
+            throw new IllegalArgumentException("预约节数不在有效规则范围内");
+        }
+    }
+
+    private void requireAdvance(LocalDate requestDate, EffectiveTimeRule rule) {
         long advanceDays = ChronoUnit.DAYS.between(LocalDate.now(clock), requestDate);
         if (advanceDays < rule.advanceMinDays() || advanceDays > rule.advanceMaxDays()) {
             throw new IllegalArgumentException("请求日期不在允许的提前预约范围内");
         }
-        if (durationMinutes < rule.minDurationMinutes() || durationMinutes > rule.maxDurationMinutes()) {
-            throw new IllegalArgumentException("预约时长不在有效规则范围内");
-        }
-        int closeMinute = com.campus.lab.common.DayTimes.minuteOfDay(rule.closeTime(), true);
-        int windowEndMinute = com.campus.lab.common.DayTimes.minuteOfDay(windowEnd, true);
-        int earliestStart = Math.max(minuteOfDay(windowStart), minuteOfDay(rule.openTime()));
-        int latestStart = Math.min(windowEndMinute, closeMinute) - durationMinutes;
-        if (latestStart < earliestStart) {
-            throw new IllegalArgumentException("请求窗口与开放时间无法容纳预约时长");
+    }
+
+    private static void requireApplicableDay(long labId, LocalDate requestDate, EffectiveTimeRule rule) {
+        if (labId != rule.labId() || requestDate.getDayOfWeek().getValue() != rule.dayOfWeek()) {
+            throw new IllegalArgumentException("实验室当日没有适用开放规则");
         }
     }
 
-    public static void validateDurationRange(int minDurationMinutes, int maxDurationMinutes) {
-        if (minDurationMinutes % 30 != 0 || maxDurationMinutes % 30 != 0
-                || minDurationMinutes < 30
-                || minDurationMinutes > maxDurationMinutes
-                || maxDurationMinutes > 240) {
-            throw new IllegalArgumentException(
-                    "有效预约时长必须为30的倍数，且满足30<=min<=max<=240");
+    private static void requireActiveLab(ResourceStatus laboratoryStatus) {
+        if (laboratoryStatus != ResourceStatus.ACTIVE) {
+            throw new IllegalArgumentException("实验室当前不可预约");
         }
     }
 
@@ -126,7 +144,7 @@ public class RuleValidator {
         return laboratoryValue == null ? globalValue : laboratoryValue;
     }
 
-    private static int minuteOfDay(LocalTime time) {
+    private static int minute(LocalTime time) {
         return time.getHour() * 60 + time.getMinute();
     }
 }

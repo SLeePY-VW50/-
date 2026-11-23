@@ -1,5 +1,5 @@
 <view class="page board">
-  <view class="muted page-subtitle">48 格，每格 30 分钟</view>
+  <view class="muted page-subtitle">按节预约，一节一格</view>
   <view wx:if="{{error}}" class="error">
     <text>{{error}}</text>
     <text bindtap="retry" class="retry" role="button">重试</text>
@@ -23,10 +23,24 @@
   <block wx:elif="{{availability}}">
     <slot-grid wx:if="{{dayRule && availability.slots.length}}" slots="{{availability.slots}}" mode="{{mode}}" openTime="{{openTime}}" closeTime="{{closeTime}}" date="{{date}}" selection="{{selection}}" bind:change="onSelection" />
     <view wx:elif="{{dayRule}}" class="empty">当日暂无可显示的时间片</view>
-    <view wx:if="{{dayRule}}" class="muted rule-note">开放 {{openTime}}–{{closeTime}} · 预约 {{dayRule.minDurationMinutes}}–{{dayRule.maxDurationMinutes}} 分钟 · 提前 {{dayRule.advanceMinDays}}–{{dayRule.advanceMaxDays}} 天</view>
+    <view wx:if="{{dayRule}}" class="muted rule-note">开放第 {{dayRule.openStartPeriod}}–{{dayRule.openEndPeriod}} 节 · 每次 {{dayRule.minPeriods}}–{{dayRule.maxPeriods}} 节 · 提前 {{dayRule.advanceMinDays}}–{{dayRule.advanceMaxDays}} 天</view>
     <view wx:else class="empty">当日未开放</view>
   </block>
   <view wx:elif="{{!error && !labs.length}}" class="empty">暂无可预约实验室</view>
+  <view class="recommend-box">
+    <picker range="{{durationOptions}}" value="{{durationIndex}}" aria-label="预约时长" bindchange="onDuration">
+      <view class="form-row"><text class="field-label">时长</text><text>{{durationMinutes}} 分钟</text></view>
+    </picker>
+    <view class="form-row">
+      <label class="field-label" for="party-size">人数</label>
+      <input id="party-size" class="form-input" type="number" value="{{attendeeCount}}" bindinput="onAttendees" />
+    </view>
+    <button class="button-secondary" loading="{{recommending}}" disabled="{{recommending}}" bindtap="loadRecommendations">推荐空闲时段</button>
+    <view wx:if="{{recommendationNote}}" class="muted rule-note">{{recommendationNote}}</view>
+    <view wx:if="{{recommendations.length}}" class="candidates">
+      <view wx:for="{{recommendations}}" wx:key="startSlot" class="candidate" data-index="{{index}}" bindtap="useRecommendation">{{item.startTime}}–{{item.endTime}}</view>
+    </view>
+  </view>
   <view wx:if="{{selectedText}}" class="selection-bar">
     <view>
       <text class="muted">已选时段</text>

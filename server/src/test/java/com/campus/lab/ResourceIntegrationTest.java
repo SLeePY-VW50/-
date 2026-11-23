@@ -49,7 +49,7 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
         long labId = labId("LAB-A");
         jdbcTemplate.update("""
                 UPDATE t_time_rule
-                SET min_duration_minutes = 60, max_duration_minutes = 180,
+                SET min_periods = 2, max_periods = 4,
                     advance_min_days = 2, advance_max_days = 10
                 WHERE lab_id = ? AND day_of_week = 1
                 """, labId);
@@ -62,14 +62,14 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.labId").value(labId))
                 .andExpect(jsonPath("$.data.weeklyRules.length()").value(7))
                 .andExpect(jsonPath("$.data.weeklyRules[0].dayOfWeek").value(1))
-                .andExpect(jsonPath("$.data.weeklyRules[0].openTime").value("08:00:00"))
-                .andExpect(jsonPath("$.data.weeklyRules[0].closeTime").value("22:00:00"))
-                .andExpect(jsonPath("$.data.weeklyRules[0].minDurationMinutes").value(60))
-                .andExpect(jsonPath("$.data.weeklyRules[0].maxDurationMinutes").value(180))
+                .andExpect(jsonPath("$.data.weeklyRules[0].openTime").value("08:30:00"))
+                .andExpect(jsonPath("$.data.weeklyRules[0].closeTime").value("17:30:00"))
+                .andExpect(jsonPath("$.data.weeklyRules[0].minPeriods").value(2))
+                .andExpect(jsonPath("$.data.weeklyRules[0].maxPeriods").value(4))
                 .andExpect(jsonPath("$.data.weeklyRules[0].advanceMinDays").value(2))
                 .andExpect(jsonPath("$.data.weeklyRules[0].advanceMaxDays").value(10))
-                .andExpect(jsonPath("$.data.weeklyRules[1].minDurationMinutes").value(30))
-                .andExpect(jsonPath("$.data.weeklyRules[1].maxDurationMinutes").value(240))
+                .andExpect(jsonPath("$.data.weeklyRules[1].minPeriods").value(1))
+                .andExpect(jsonPath("$.data.weeklyRules[1].maxPeriods").value(5))
                 .andExpect(jsonPath("$.data.weeklyRules[1].advanceMinDays").value(1))
                 .andExpect(jsonPath("$.data.weeklyRules[1].advanceMaxDays").value(14))
                 .andExpect(jsonPath("$.data.cancellation.freeBeforeHours").value(2))
@@ -100,7 +100,7 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.roomMask").value("0"))
                 .andExpect(jsonPath("$.data.labStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.seats.length()").value(20))
-                .andExpect(jsonPath("$.data.slots.length()").value(48))
+                .andExpect(jsonPath("$.data.slots.length()").value(13))
                 .andExpect(jsonPath("$.data.seats[0].seatCode").value("LAB-A-SEAT-01"))
                 .andExpect(jsonPath("$.data.seats[0].zoneCode").isNotEmpty())
                 .andExpect(jsonPath("$.data.seats[0].seatIndex").value(1))
@@ -108,13 +108,14 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.seats[0].status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.seats[0].mask").value("0"))
                 .andExpect(jsonPath("$.data.slots[0].index").value(0))
-                .andExpect(jsonPath("$.data.slots[0].start").value("00:00"))
-                .andExpect(jsonPath("$.data.slots[0].end").value("00:30"))
+                .andExpect(jsonPath("$.data.slots[0].start").value("08:30"))
+                .andExpect(jsonPath("$.data.slots[0].end").value("09:15"))
                 .andExpect(jsonPath("$.data.slots[0].roomOccupied").value(false))
                 .andExpect(jsonPath("$.data.slots[0].occupiedSeatCount").value(0))
                 .andExpect(jsonPath("$.data.slots[0].availableSeatCount").value(20))
-                .andExpect(jsonPath("$.data.slots[47].start").value("23:30"))
-                .andExpect(jsonPath("$.data.slots[47].end").value("24:00"))
+                .andExpect(jsonPath("$.data.slots[12].start").value("20:05"))
+                .andExpect(jsonPath("$.data.slots[12].end").value("20:50"))
+                .andExpect(jsonPath("$.data.slots[12].bookable").value(false))
                 .andReturn();
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
         assertThat(body.path("data").path("seats"))
@@ -127,9 +128,9 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
     void availabilitySummarizesManualRoomAndSeatBitmaps() throws Exception {
         long labId = labId("LAB-A");
         List<Long> seatIds = seatIds(labId);
-        long roomMask = 1L << 16;
-        long firstSeatMask = 1L << 16;
-        long secondSeatMask = (1L << 16) | (1L << 17);
+        long roomMask = 1L << 0;
+        long firstSeatMask = 1L << 0;
+        long secondSeatMask = (1L << 0) | (1L << 1);
         jdbcTemplate.update(
                 "INSERT INTO t_slot_bitmap (lab_id, bitmap_date, mask) VALUES (?, ?, ?)",
                 labId, DATE, roomMask);
@@ -151,15 +152,15 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.seats[0].mask").value(Long.toString(firstSeatMask)))
                 .andExpect(jsonPath("$.data.seats[1].mask").value(Long.toString(secondSeatMask)))
                 .andExpect(jsonPath("$.data.seats[2].mask").value("0"))
-                .andExpect(jsonPath("$.data.slots[16].start").value("08:00"))
-                .andExpect(jsonPath("$.data.slots[16].roomOccupied").value(true))
-                .andExpect(jsonPath("$.data.slots[16].occupiedSeatCount").value(2))
-                .andExpect(jsonPath("$.data.slots[16].availableSeatCount").value(0))
-                .andExpect(jsonPath("$.data.slots[17].roomOccupied").value(false))
-                .andExpect(jsonPath("$.data.slots[17].occupiedSeatCount").value(1))
-                .andExpect(jsonPath("$.data.slots[17].availableSeatCount").value(18))
-                .andExpect(jsonPath("$.data.slots[18].occupiedSeatCount").value(0))
-                .andExpect(jsonPath("$.data.slots[18].availableSeatCount").value(19));
+                .andExpect(jsonPath("$.data.slots[0].start").value("08:30"))
+                .andExpect(jsonPath("$.data.slots[0].roomOccupied").value(true))
+                .andExpect(jsonPath("$.data.slots[0].occupiedSeatCount").value(2))
+                .andExpect(jsonPath("$.data.slots[0].availableSeatCount").value(0))
+                .andExpect(jsonPath("$.data.slots[1].roomOccupied").value(false))
+                .andExpect(jsonPath("$.data.slots[1].occupiedSeatCount").value(1))
+                .andExpect(jsonPath("$.data.slots[1].availableSeatCount").value(18))
+                .andExpect(jsonPath("$.data.slots[2].occupiedSeatCount").value(0))
+                .andExpect(jsonPath("$.data.slots[2].availableSeatCount").value(19));
     }
 
     @Test
@@ -187,7 +188,7 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
     private void assertUnavailableLab(String labStatus) throws Exception {
         long labId = labId("LAB-A");
         long seatId = seatIds(labId).getFirst();
-        long occupiedMask = 1L << 16;
+        long occupiedMask = 1L << 0;
         jdbcTemplate.update("UPDATE t_lab SET status = ? WHERE lab_id = ?", labStatus, labId);
         jdbcTemplate.update(
                 "INSERT INTO t_slot_bitmap (lab_id, bitmap_date, mask) VALUES (?, ?, ?)",
@@ -204,15 +205,15 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.labStatus").value(labStatus))
                 .andExpect(jsonPath("$.data.roomMask").value(Long.toString(occupiedMask)))
                 .andExpect(jsonPath("$.data.seats[0].mask").value(Long.toString(occupiedMask)))
-                .andExpect(jsonPath("$.data.slots[16].roomOccupied").value(true))
-                .andExpect(jsonPath("$.data.slots[16].occupiedSeatCount").value(1))
-                .andExpect(jsonPath("$.data.slots[16].availableSeatCount").value(0))
-                .andExpect(jsonPath("$.data.slots[17].roomOccupied").value(false))
-                .andExpect(jsonPath("$.data.slots[17].occupiedSeatCount").value(0))
-                .andExpect(jsonPath("$.data.slots[17].availableSeatCount").value(0))
+                .andExpect(jsonPath("$.data.slots[0].roomOccupied").value(true))
+                .andExpect(jsonPath("$.data.slots[0].occupiedSeatCount").value(1))
+                .andExpect(jsonPath("$.data.slots[0].availableSeatCount").value(0))
+                .andExpect(jsonPath("$.data.slots[12].roomOccupied").value(false))
+                .andExpect(jsonPath("$.data.slots[12].occupiedSeatCount").value(0))
+                .andExpect(jsonPath("$.data.slots[12].availableSeatCount").value(0))
                 .andReturn();
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
-        assertThat(body.path("data").path("slots")).hasSize(48);
+        assertThat(body.path("data").path("slots")).hasSize(13);
         assertThat(body.path("data").path("slots"))
                 .allSatisfy(slot -> assertThat(slot.path("availableSeatCount").asInt()).isZero());
     }
@@ -344,8 +345,8 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
         long labId = labId("LAB-A");
         long ruleId = ruleId(labId, 1);
         Map<String, Object> request = Map.of(
-                "openTime", "09:00", "closeTime", "21:00",
-                "minDurationMinutes", 60, "maxDurationMinutes", 180,
+                "openStartPeriod", 2, "openEndPeriod", 10,
+                "minPeriods", 2, "maxPeriods", 4,
                 "advanceMinDays", 2, "advanceMaxDays", 7);
 
         for (int invocation = 0; invocation < 2; invocation++) {
@@ -355,10 +356,10 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.ruleId").value(ruleId))
-                    .andExpect(jsonPath("$.data.openTime").value("09:00:00"))
-                    .andExpect(jsonPath("$.data.closeTime").value("21:00:00"))
-                    .andExpect(jsonPath("$.data.minDurationMinutes").value(60))
-                    .andExpect(jsonPath("$.data.maxDurationMinutes").value(180))
+                    .andExpect(jsonPath("$.data.openTime").value("09:15:00"))
+                    .andExpect(jsonPath("$.data.closeTime").value("17:30:00"))
+                    .andExpect(jsonPath("$.data.minPeriods").value(2))
+                    .andExpect(jsonPath("$.data.maxPeriods").value(4))
                     .andExpect(jsonPath("$.data.advanceMinDays").value(2))
                     .andExpect(jsonPath("$.data.advanceMaxDays").value(7));
         }
@@ -366,19 +367,19 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType("application/json")
                         .content("""
-                                {"openTime":"09:00","closeTime":"21:00",
-                                 "minDurationMinutes":null,"maxDurationMinutes":null,
+                                {"openStartPeriod":1,"openEndPeriod":10,
+                                 "minPeriods":null,"maxPeriods":null,
                                  "advanceMinDays":null,"advanceMaxDays":null}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.minDurationMinutes").value(30))
-                .andExpect(jsonPath("$.data.maxDurationMinutes").value(240))
+                .andExpect(jsonPath("$.data.minPeriods").value(1))
+                .andExpect(jsonPath("$.data.maxPeriods").value(5))
                 .andExpect(jsonPath("$.data.advanceMinDays").value(1))
                 .andExpect(jsonPath("$.data.advanceMaxDays").value(14));
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_time_rule
-                WHERE rule_id = ? AND min_duration_minutes IS NULL
-                  AND max_duration_minutes IS NULL AND advance_min_days IS NULL
+                WHERE rule_id = ? AND min_periods IS NULL
+                  AND max_periods IS NULL AND advance_min_days IS NULL
                   AND advance_max_days IS NULL
                 """, Integer.class, ruleId)).isEqualTo(1);
     }
@@ -463,13 +464,13 @@ class ResourceIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "openTime", "09:00", "closeTime", "08:00",
-                                "minDurationMinutes", 60, "maxDurationMinutes", 30))))
+                                "openStartPeriod", 6, "openEndPeriod", 2,
+                                "minPeriods", 2, "maxPeriods", 1))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT open_time FROM t_time_rule WHERE rule_id = ?", String.class, ruleId))
-                .isEqualTo("08:00:00");
+                .isEqualTo("08:30:00");
         mockMvc.perform(patch("/api/admin/seats/{id}/status", 999999999)
                         .header("Authorization", "Bearer " + token)
                         .contentType("application/json")

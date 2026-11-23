@@ -22,10 +22,13 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "sys_user", "sys_role", "sys_permission", "sys_user_role", "sys_role_permission",
-            "t_lab", "t_lab_seat", "t_device", "t_time_rule", "t_slot_bitmap", "t_seat_bitmap",
+            "t_lab", "t_lab_seat", "t_device", "t_time_rule", "t_period_set", "t_period",
+            "t_slot_bitmap", "t_seat_bitmap",
             "t_sys_config", "t_reservation_batch", "t_reservation", "t_reservation_seat",
             "t_reservation_log", "t_violation", "t_credit_record", "t_appeal",
-            "t_schedule_task", "t_schedule_result", "t_algorithm_experiment", "t_stat_daily");
+            "t_schedule_task", "t_schedule_result", "t_algorithm_experiment", "t_stat_daily",
+            "t_semester", "t_lab_admin", "t_timetable_entry", "t_timetable_roster",
+            "t_timetable_session", "t_timetable_attendance");
 
     @Test
     void migrationCreatesTheExactSchemaAndReferenceDataContract() {
@@ -39,7 +42,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                   AND table_type = 'BASE TABLE'
                   AND table_name <> 'flyway_schema_history'
                 """, String.class);
-        assertThat(tables).hasSize(23);
+        assertThat(tables).hasSize(31);
         assertThat(tables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
 
         Set<String> reservationColumns = jdbcTemplate.queryForList("""
@@ -48,7 +51,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 WHERE table_schema = DATABASE() AND table_name = 't_reservation'
                 """, String.class).stream().collect(Collectors.toSet());
         assertThat(reservationColumns).contains(
-                "batch_id", "user_id", "allocation_mode", "reservation_mode", "request_date",
+                "batch_id", "user_id", "allocation_mode", "reservation_mode", "occupancy_source", "request_date",
                 "request_window_start", "request_window_end", "requested_duration_minutes",
                 "lab_id", "start_time", "end_time", "attendee_count", "seat_count",
                 "purpose", "preferences",
@@ -85,6 +88,8 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .containsEntry("cancel.free.before.hours", "2")
                 .containsEntry("reservation.duration.min.minutes", "30")
                 .containsEntry("reservation.duration.max.minutes", "240")
+                .containsEntry("reservation.duration.min.periods", "1")
+                .containsEntry("reservation.duration.max.periods", "5")
                 .containsEntry("reservation.advance.min.days", "1")
                 .containsEntry("reservation.advance.max.days", "14")
                 .containsEntry("schedule.primary.algorithm", "GREEDY")
@@ -229,7 +234,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 SELECT COUNT(*) FROM t_time_rule r
                 JOIN t_lab l ON l.lab_id = r.lab_id
                 WHERE l.lab_code IN ('LAB-A', 'LAB-B')
-                  AND (r.open_time <> '08:00:00' OR r.close_time <> '22:00:00')
+                  AND (r.open_time <> '08:30:00' OR r.close_time <> '17:30:00')
                 """, Integer.class)).isZero();
 
         String terminalHash = jdbcTemplate.queryForObject("""
@@ -245,6 +250,155 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .isZero();
     }
 
+    @Test
+    void registrationCreatesAnActiveStudentUsableByExistingLogin() throws Exception {
+        String account = "R" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 20);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", account,
+                                "name", "注册学生",
+                                "password", "Reg@2026"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.account").value(account))
+                .andExpect(jsonPath("$.data.name").value("注册学生"))
+                .andExpect(jsonPath("$.data.roles[0]").value("STUDENT"))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.token").doesNotExist())
+                .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
+
+        loginAndGetToken(account, "Reg@2026");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT credit_score FROM sys_user WHERE account = ?", Integer.class, account))
+                .isEqualTo(100);
+    }
+
+    @Test
+    void duplicateAccountRegistrationIsRejectedWithoutOverwritingTheUser() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "20240001",
+                                "name", "覆盖尝试",
+                                "password", "Reg@2026"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("账号已存在"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM sys_user WHERE account = '20240001'", String.class))
+                .isEqualTo("演示学生");
+    }
+
+    @Test
+    void registrationRejectsMissingFields() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", " ",
+                                "name", "注册学生",
+                                "password", "Reg@2026"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void anonymousCannotCreateUsersThroughAdminEndpoint() throws Exception {
+        mockMvc.perform(post("/api/admin/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "ANON-1",
+                                "name", "匿名创建",
+                                "password", "Create@2026",
+                                "role", "STUDENT"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
+    }
+
+    @Test
+    void nonSysAdminCannotCreateUsers() throws Exception {
+        String token = loginAndGetToken("T1001", "Lab@2026");
+
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "DENIED-1",
+                                "name", "越权创建",
+                                "password", "Create@2026",
+                                "role", "STUDENT"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("没有执行该操作的权限"));
+    }
+
+    @Test
+    void sysAdminCreatesUsersWithEachRoleAndTheyAppearInTheList() throws Exception {
+        String token = loginAndGetToken("A1001", "Lab@2026");
+        List<String> accounts = new ArrayList<>();
+        for (String role : List.of("STUDENT", "TEACHER", "LAB_ADMIN", "SYS_ADMIN")) {
+            String account = "C" + java.util.UUID.randomUUID().toString()
+                    .replace("-", "").substring(0, 20);
+            accounts.add(account);
+            mockMvc.perform(post("/api/admin/users")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "account", account,
+                                    "name", "管理员建号",
+                                    "password", "Create@2026",
+                                    "role", role))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data.account").value(account))
+                    .andExpect(jsonPath("$.data.roles[0]").value(role))
+                    .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+            loginAndGetToken(account, "Create@2026");
+        }
+
+        String list = mockMvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(list).path("data").findValuesAsText("account"))
+                .containsAll(accounts);
+    }
+
+    @Test
+    void adminCreateRejectsUnknownRole() throws Exception {
+        String token = loginAndGetToken("A1001", "Lab@2026");
+
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "ROLE-UNKNOWN-1",
+                                "name", "未知角色",
+                                "password", "Create@2026",
+                                "role", "GUEST"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("角色无效"));
+    }
+
+    @Test
+    void sysAdminCreateRejectsDuplicateAccount() throws Exception {
+        String token = loginAndGetToken("A1001", "Lab@2026");
+
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "account", "20240001",
+                                "name", "重复账号",
+                                "password", "Create@2026",
+                                "role", "TEACHER"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("账号已存在"));
+    }
+
     private void createNonDemoResourceData() {
         String otherAccount = createTestAccount("STUDENT");
         long otherUserId = userIdByAccount(otherAccount);
@@ -256,7 +410,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 "SELECT lab_id FROM t_lab WHERE lab_code = 'LAB-OTHER'", Long.class);
         jdbcTemplate.update("""
                 INSERT INTO t_time_rule (lab_id, day_of_week, open_time, close_time)
-                VALUES (?, 1, '09:00:00', '21:00:00')
+                VALUES (?, 1, '09:15:00', '12:30:00')
                 """, otherLabId);
         jdbcTemplate.update("""
                 INSERT INTO t_lab_seat
@@ -268,8 +422,8 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                     (user_id, allocation_mode, reservation_mode, request_date,
                      request_window_start, request_window_end, requested_duration_minutes,
                      lab_id, start_time, end_time, attendee_count, seat_count, purpose, status)
-                VALUES (?, 'FIXED', 'SEAT', '2026-11-02', '09:00:00', '10:00:00', 60,
-                        ?, '2026-11-02 09:00:00', '2026-11-02 10:00:00', 1, 1,
+                VALUES (?, 'FIXED', 'SEAT', '2026-11-02', '09:15:00', '10:00:00', 45,
+                        ?, '2026-11-02 09:15:00', '2026-11-02 10:00:00', 1, 1,
                         'non-demo-fixture', 'APPROVED')
                 """, otherUserId, otherLabId);
     }

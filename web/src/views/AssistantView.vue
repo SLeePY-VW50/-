@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
 import http, { errorMessage } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import { useDraftStore } from '../stores/draft'
-import type { ReservationDraft } from '../types'
+import { buildConfirmedSchedulablePayload } from '../schedulableDraft'
+import type { Reservation, ReservationDraft } from '../types'
 import { formatDateTime } from '../utils'
 import EmptyState from '../components/EmptyState.vue'
 
@@ -24,6 +25,15 @@ const degradedNotice = ref('')
 const generatedAt = ref('')
 const sources = ref<string[]>([])
 const draft = ref<ReservationDraft | null>(null)
+const confirmed = ref(false)
+const draftPurpose = ref('')
+const submittingDraft = ref(false)
+const draftSuccess = ref('')
+watch(draft, (value) => {
+  confirmed.value = false
+  draftSuccess.value = ''
+  draftPurpose.value = value?.allocationMode === 'SCHEDULABLE' ? (value.purpose || '') : ''
+})
 const historyLoaded = ref(false)
 const messageList = ref<HTMLDivElement>()
 
@@ -109,9 +119,31 @@ async function send() {
   }
 }
 function useDraft() {
-  if (!draft.value) return
+  if (!draft.value || draft.value.allocationMode !== 'FIXED') return
   draftStore.setDraft(draft.value)
   router.push({ path: '/labs', query: { draft: '1' } })
+}
+async function submitSchedulable() {
+  if (!draft.value || draft.value.allocationMode !== 'SCHEDULABLE' || submittingDraft.value) return
+  error.value = ''
+  let payload
+  try {
+    payload = buildConfirmedSchedulablePayload(draft.value, confirmed.value, draftPurpose.value)
+  } catch (cause) {
+    error.value = errorMessage(cause)
+    return
+  }
+  submittingDraft.value = true
+  try {
+    const reservation = await http.post<Reservation>('/api/reservations', payload)
+    draftSuccess.value = `可调度请求 #${reservation.resvId} 已提交，等待排程`
+    draft.value = null
+    confirmed.value = false
+  } catch (cause) {
+    error.value = errorMessage(cause)
+  } finally {
+    submittingDraft.value = false
+  }
 }
 async function newThread() {
   threadId.value = crypto.randomUUID(); messages.value = []; draft.value = null; sources.value = []; generatedAt.value = ''; error.value = ''
@@ -123,7 +155,7 @@ onMounted(() => { loadHistory(); checkHealth() })
 <template>
   <div class="page assistant-page">
     <header class="page-header"><div><span class="eyebrow">辅助起草 · 人工核对</span><h1>AI预约助手</h1><p>把需求整理成草稿；任何预约都必须回到表单核对并由你主动提交。</p></div><div class="button-row"><button class="button" @click="newThread">新会话</button><router-link class="button button--primary" to="/labs">普通预约</router-link></div></header>
-    <div v-if="degradedNotice" class="degrade-alert" role="alert"><strong>AI服务降级提示</strong><span>{{ degradedNotice }}</span><router-link to="/labs" class="degrade-alert__link">改用普通预约<el-icon><ArrowRight /></el-icon></router-link></div>
+    <div v-if="degradedNotice" class="degrade-alert" role="alert"><strong>AI服务降级提示</strong><span>{{ degradedNotice }} 没有模型时仍可手工填写可调度预约。</span><router-link to="/labs" class="degrade-alert__link">改用普通预约<el-icon><ArrowRight /></el-icon></router-link><router-link to="/labs?allocation=SCHEDULABLE" class="degrade-alert__link">填写可调度预约<el-icon><ArrowRight /></el-icon></router-link></div>
     <section class="assistant-layout">
       <div class="chat-panel">
         <div class="thread-bar"><span>当前会话</span><code>{{ threadId }}</code></div>
@@ -136,7 +168,8 @@ onMounted(() => { loadHistory(); checkHealth() })
       </div>
       <aside class="answer-panel">
         <section class="panel"><div class="panel__header"><h2>生成信息</h2></div><dl class="detail-list"><dt>生成时间</dt><dd class="mono">{{ generatedAt ? formatDateTime(generatedAt) : '等待本次回答完成' }}</dd><dt>信息来源</dt><dd><ul v-if="sources.length" class="source-list"><li v-for="source in sources" :key="source">{{ source }}</li></ul><span v-else>暂无来源</span></dd></dl><p class="verify-note">请核对后提交。AI内容不会自动创建预约。</p></section>
-        <section v-if="draft" class="panel draft-card"><span class="eyebrow">预约草稿</span><h2>检测到预约草稿</h2><dl class="detail-list"><dt>日期</dt><dd class="mono">{{ draft.date }}</dd><dt>时段</dt><dd class="mono">{{ draft.startTime }}–{{ draft.endTime }}</dd><dt>方式</dt><dd>{{ draft.reservationMode }} · {{ draft.seatCount }}人/工位</dd><dt>偏好</dt><dd>{{ draft.preferences.minSpecLevel || '不限配置' }} / {{ draft.preferences.zoneCode || '不限区域' }}</dd></dl><button class="button button--primary draft-button" @click="useDraft">回填到预约表单</button><small>仅写入本地草稿并跳转，不会自动POST。</small></section>
+        <section v-if="draft && draft.allocationMode === 'FIXED'" class="panel draft-card"><span class="eyebrow">预约草稿</span><h2>检测到固定预约草稿</h2><dl class="detail-list"><dt>日期</dt><dd class="mono">{{ draft.date }}</dd><dt>时段</dt><dd class="mono">{{ draft.startTime }}–{{ draft.endTime }}</dd><dt>方式</dt><dd>{{ draft.reservationMode }} · {{ draft.seatCount }}人/工位</dd><dt>偏好</dt><dd>{{ draft.preferences.minSpecLevel || '不限配置' }} / {{ draft.preferences.zoneCode || '不限区域' }}</dd></dl><button class="button button--primary draft-button" @click="useDraft">回填到预约表单</button><small>仅写入本地草稿并跳转，不会自动POST。</small></section>
+        <section v-else-if="draft && draft.allocationMode === 'SCHEDULABLE'" class="panel draft-card"><span class="eyebrow">可调度草稿</span><h2>确认后提交给排程</h2><dl class="detail-list"><dt>日期</dt><dd class="mono">{{ draft.date }}</dd><dt>窗口</dt><dd class="mono">{{ draft.windowStart }}–{{ draft.windowEnd }}</dd><dt>节数</dt><dd class="mono">{{ draft.durationPeriods }} 节</dd><dt>人数</dt><dd>{{ draft.attendeeCount }} · {{ draft.reservationMode }}</dd><dt>实验室</dt><dd>{{ draft.labId || '由排程在候选实验室中确定' }}</dd></dl><label class="field"><span>使用用途</span><textarea v-model="draftPurpose" data-testid="schedulable-purpose" rows="2" maxlength="500" /></label><label class="confirm-row"><input v-model="confirmed" data-testid="schedulable-confirm" type="checkbox">我已核对窗口、时长和人数</label><button class="button button--primary draft-button" type="button" data-testid="schedulable-submit" :disabled="submittingDraft || !confirmed" @click="submitSchedulable">{{ submittingDraft ? '正在提交…' : '确认并提交可调度请求' }}</button><small>未勾选确认时不会提交。提交后进入现有排程，而不是立即锁定时段。</small><p v-if="draftSuccess" class="verify-note">{{ draftSuccess }}</p></section>
       </aside>
     </section>
   </div>
@@ -170,5 +203,9 @@ onMounted(() => { loadHistory(); checkHealth() })
 .draft-card h2 { margin-top: 8px; }
 .draft-button { width: 100%; margin-top: 19px; }
 .draft-card > small { display: block; margin-top: 9px; color: var(--muted); font-size: 10px; }
+.field { display: grid; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+.field textarea { width: 100%; min-height: 64px; box-sizing: border-box; padding: 8px 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0; outline: none; font: 14px/1.6 "IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif; }
+.confirm-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--ink); font-size: 13px; }
+.confirm-row input { width: 16px; height: 16px; margin: 0; }
 @media (max-width: 980px) { .assistant-layout { grid-template-columns: 1fr; }.chat-panel { grid-template-rows: auto minmax(330px, 50vh) auto; } }
 </style>

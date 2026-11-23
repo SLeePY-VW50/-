@@ -32,12 +32,12 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
     void myReservationsAreOwnerScopedAndFilterByStatusWithFullView() throws Exception {
         long labId = labId("LAB-A");
         String owner = loginAndGetToken("20240001", "Lab@2026");
-        long approvedId = createFixed(owner, labId, "09:00", "10:00", "本人已审批")
+        long approvedId = createFixed(owner, labId, "09:15", "10:00", "本人已审批")
                 .path("data").path("resvId").asLong();
         long pendingId = createSchedulable(owner, "本人待排期")
                 .path("data").path("resvId").asLong();
         String other = loginAndGetToken(createTestAccount("STUDENT"), "Lab@2026");
-        long otherId = createFixed(other, labId, "09:00", "10:00", "他人预约")
+        long otherId = createFixed(other, labId, "09:15", "10:00", "他人预约")
                 .path("data").path("resvId").asLong();
 
         JsonNode mine = responseJson(mockMvc.perform(get("/api/reservations/my")
@@ -79,10 +79,10 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
     void listIsOwnerScopedForUsersAndAdminCanFilterAll() throws Exception {
         long labId = labId("LAB-A");
         String student = loginAndGetToken("20240001", "Lab@2026");
-        long studentReservation = createFixed(student, labId, "09:00", "10:00", "学生列表")
+        long studentReservation = createFixed(student, labId, "09:15", "10:00", "学生列表")
                 .path("data").path("resvId").asLong();
         String teacher = loginAndGetToken("T1001", "Lab@2026");
-        long teacherReservation = createFixed(teacher, labId, "09:00", "10:00", "教师列表")
+        long teacherReservation = createFixed(teacher, labId, "09:15", "10:00", "教师列表")
                 .path("data").path("resvId").asLong();
 
         mockMvc.perform(get("/api/reservations")
@@ -127,7 +127,7 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
     void detailAllowsOwnerAndAdminsButDoesNotLeakToOtherUsers() throws Exception {
         long labId = labId("LAB-A");
         String owner = loginAndGetToken("20240001", "Lab@2026");
-        long reservationId = createFixed(owner, labId, "09:00", "10:00", "详情权限")
+        long reservationId = createFixed(owner, labId, "09:15", "10:00", "详情权限")
                 .path("data").path("resvId").asLong();
 
         mockMvc.perform(get("/api/reservations/{id}", reservationId)
@@ -156,9 +156,9 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
     void myPaginatesWithTotalAndRejectsInvalidPageArguments() throws Exception {
         long labId = labId("LAB-A");
         String owner = loginAndGetToken("20240001", "Lab@2026");
-        createFixed(owner, labId, "08:00", "09:00", "分页一");
-        createFixed(owner, labId, "09:00", "10:00", "分页二");
-        createFixed(owner, labId, "10:00", "11:00", "分页三");
+        createFixed(owner, labId, "08:30", "09:15", "分页一");
+        createFixed(owner, labId, "09:15", "10:00", "分页二");
+        createFixed(owner, labId, "10:05", "11:45", "分页三");
 
         mockMvc.perform(get("/api/reservations/my")
                         .queryParam("page", "0").queryParam("size", "2")
@@ -194,9 +194,9 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
     void paginationUsesFixedJdbcCallCount() throws Exception {
         long labId = labId("LAB-A");
         String owner = loginAndGetToken("20240001", "Lab@2026");
-        createFixed(owner, labId, "08:00", "09:00", "计数一");
-        createFixed(owner, labId, "09:00", "10:00", "计数二");
-        createFixed(owner, labId, "10:00", "11:00", "计数三");
+        createFixed(owner, labId, "08:30", "09:15", "计数一");
+        createFixed(owner, labId, "09:15", "10:00", "计数二");
+        createFixed(owner, labId, "10:05", "11:45", "计数三");
         jdbcBaseline = jdbcCallCounts();
 
         mockMvc.perform(get("/api/reservations/my")
@@ -217,8 +217,8 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
         request.put("attendeeCount", 20);
         request.put("purpose", "批量查询SQL计数");
         request.put("items", java.util.List.of(
-                Map.of("date", "2026-11-02", "startTime", "09:00", "endTime", "10:00"),
-                Map.of("date", "2026-11-03", "startTime", "09:00", "endTime", "10:00")));
+                Map.of("date", "2026-11-02", "startTime", "09:15", "endTime", "10:00"),
+                Map.of("date", "2026-11-03", "startTime", "09:15", "endTime", "10:00")));
         JsonNode created = responseJson(mockMvc.perform(post("/api/reservations/batches")
                         .header("Authorization", "Bearer " + teacher)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -279,9 +279,9 @@ class ReservationQueryIntegrationTest extends AbstractIntegrationTest {
         Map<String, Object> request = new HashMap<>();
         request.put("allocationMode", "SCHEDULABLE");
         request.put("date", DATE.toString());
-        request.put("windowStart", "10:00");
-        request.put("windowEnd", "12:00");
-        request.put("durationMinutes", 60);
+        request.put("windowStart", "10:05");
+        request.put("windowEnd", "12:30");
+        request.put("durationPeriods", 2);
         request.put("reservationMode", "SEAT");
         request.put("attendeeCount", 1);
         request.put("seatCount", 1);

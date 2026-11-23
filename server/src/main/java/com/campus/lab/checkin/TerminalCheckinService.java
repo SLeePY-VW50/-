@@ -74,23 +74,47 @@ public class TerminalCheckinService {
         LocalDateTime now = LocalDateTime.now(clock);
         CheckinRuleService.CheckinRules rules = ruleService.rules();
         List<CheckinCandidate> candidates = jdbcTemplate.query("""
-                SELECT resv_id, start_time FROM t_reservation
-                WHERE user_id = ? AND lab_id = ? AND status = 'APPROVED'
+                SELECT resv_id, start_time FROM (
+                    SELECT resv_id, start_time FROM t_reservation
+                    WHERE user_id = ? AND lab_id = ? AND status = 'APPROVED'
+                      AND occupancy_source = 'PERSONAL'
+                    UNION ALL
+                    SELECT r.resv_id, r.start_time
+                    FROM t_reservation r
+                    JOIN t_timetable_session s ON s.resv_id = r.resv_id AND s.status = 'SCHEDULED'
+                    JOIN t_timetable_entry e ON e.entry_id = s.entry_id AND e.status = 'ACTIVE'
+                    JOIN t_timetable_roster roster ON roster.entry_id = e.entry_id AND roster.user_id = ?
+                    LEFT JOIN t_timetable_attendance a
+                      ON a.session_id = s.session_id AND a.user_id = roster.user_id
+                    WHERE r.lab_id = ? AND r.occupancy_source = 'TIMETABLE'
+                      AND r.status IN ('APPROVED', 'IN_USE')
+                      AND a.attendance_id IS NULL
+                ) candidates
                 ORDER BY start_time, resv_id
                 """, (rs, rowNum) -> new CheckinCandidate(
                         rs.getLong("resv_id"), rs.getObject("start_time", LocalDateTime.class)),
-                userId, terminal.labId()).stream()
+                userId, terminal.labId(), userId, terminal.labId()).stream()
                 .filter(candidate -> candidate.startTime() != null
                         && !now.isBefore(candidate.startTime().minusMinutes(rules.beforeMinutes()))
                         && !now.isAfter(candidate.startTime().plusMinutes(rules.graceMinutes())))
                 .toList();
         if (candidates.isEmpty()) {
             List<Long> current = jdbcTemplate.queryForList("""
-                    SELECT resv_id FROM t_reservation
-                    WHERE user_id = ? AND lab_id = ? AND status = 'IN_USE'
-                      AND checkin_time IS NOT NULL AND end_time > ?
+                    SELECT resv_id FROM (
+                        SELECT resv_id, checkin_time FROM t_reservation
+                        WHERE user_id = ? AND lab_id = ? AND status = 'IN_USE'
+                          AND occupancy_source = 'PERSONAL'
+                          AND checkin_time IS NOT NULL AND end_time > ?
+                        UNION ALL
+                        SELECT r.resv_id, a.checkin_time
+                        FROM t_reservation r
+                        JOIN t_timetable_session s ON s.resv_id = r.resv_id
+                        JOIN t_timetable_attendance a
+                          ON a.session_id = s.session_id AND a.user_id = ?
+                        WHERE r.lab_id = ? AND r.status = 'IN_USE' AND r.end_time > ?
+                    ) current_checkins
                     ORDER BY checkin_time DESC, resv_id DESC LIMIT 1
-                    """, Long.class, userId, terminal.labId(), now);
+                    """, Long.class, userId, terminal.labId(), now, userId, terminal.labId(), now);
             if (current.isEmpty()) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "当前没有可签到预约");
             }

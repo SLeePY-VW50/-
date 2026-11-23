@@ -128,7 +128,7 @@ h1, h2, h3 { color: var(--ink); font-weight: 600; text-wrap: pretty; letter-spac
 .el-dropdown-menu__item:not(.is-disabled):focus { color: var(--ink); background: #f4f4f4; }
 .el-button--primary { --el-button-bg-color: #171717; --el-button-border-color: #171717; --el-button-hover-bg-color: #000; --el-button-hover-border-color: #000; }
 
-.periods { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 0; background: var(--paper); }
+.periods { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: 0; background: var(--paper); }
 .period { position: relative; display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--line); }
 .period:first-child { border-left: 0; }
 .period-h { height: 48px; padding: 8px 16px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
@@ -136,7 +136,7 @@ h1, h2, h3 { color: var(--ink); font-weight: 600; text-wrap: pretty; letter-spac
 .slots { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .cell { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 0 16px; color: var(--muted); background: var(--paper); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; cursor: pointer; font-size: 13px; font-variant-numeric: tabular-nums; text-align: left; }
 .cell:hover:not(:disabled):not(.cell--closed):not(.cell--occupied):not(.cell--selected) { background: #f4f4f4; }
-.cell--closed { color: transparent; background: repeating-linear-gradient(-45deg, #f5f5f5 0 5px, #dddddd 5px 6px); cursor: default; }
+.cell--closed { color: var(--muted); background: repeating-linear-gradient(-45deg, #f5f5f5 0 5px, #dddddd 5px 6px); cursor: default; }
 .cell--occupied { color: var(--ink); background: repeating-linear-gradient(-45deg, #fff 0 5px, #525252 5px 6px); cursor: default; }
 .cell--selected, .cell--selected:hover { color: #fff; background: var(--ink); }
 .cell--conflict { box-shadow: inset 0 0 0 1px var(--ink); }
@@ -152,7 +152,7 @@ h1, h2, h3 { color: var(--ink); font-weight: 600; text-wrap: pretty; letter-spac
   .split-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 800px) {
-  .periods { grid-template-columns: 1fr 1fr; }
+  .periods { grid-template-columns: 1fr; }
   .cell { min-height: 32px; padding: 0 8px; }
 }
 @media (max-width: 720px) {

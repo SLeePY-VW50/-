@@ -1,14 +1,14 @@
 package com.campus.lab.resource.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 public record UpdateTimeRuleRequest(
-        @NotBlank String openTime,
-        @NotBlank String closeTime,
-        @Positive Integer minDurationMinutes,
-        @Positive Integer maxDurationMinutes,
-        @PositiveOrZero Integer advanceMinDays,
-        @PositiveOrZero Integer advanceMaxDays) {
+        @NotNull @Min(1) @Max(63) Integer openStartPeriod,
+        @NotNull @Min(1) @Max(63) Integer openEndPeriod,
+        @Min(1) @Max(63) Integer minPeriods,
+        @Min(1) @Max(63) Integer maxPeriods,
+        @Min(0) Integer advanceMinDays,
+        @Min(0) Integer advanceMaxDays) {
 }

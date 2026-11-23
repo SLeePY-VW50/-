@@ -275,7 +275,7 @@ class ExperimentIntegrationTest extends AbstractReservationNonTransactionalTest 
                 roomCount++;
             }
             assertThat(demand.path("attendeeCount").asInt()).isPositive();
-            assertThat(demand.path("durationMinutes").asInt()).isBetween(30, 240);
+            assertThat(demand.path("durationPeriods").asInt()).isBetween(1, 5);
             assertThat(demand.path("allowedLabIds").isArray()).isTrue();
             assertThat(demand.path("preferredZone").isNull()
                     || demand.path("preferredZone").isTextual()).isTrue();

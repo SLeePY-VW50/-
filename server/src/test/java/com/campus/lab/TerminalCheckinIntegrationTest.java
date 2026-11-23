@@ -105,7 +105,7 @@ class TerminalCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest
         long reservationId = createReservation(
                 userIdByAccount(owner), firstLab, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
 
         MvcResult wrongLab = terminalCheckin(secondCookie, owner, USER_PASSWORD).andReturn();
         MvcResult noReservation = terminalCheckin(firstCookie, other, USER_PASSWORD).andReturn();
@@ -164,11 +164,11 @@ class TerminalCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest
         long inUse = createReservation(
                 userId, labId, "SEAT", "IN_USE",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
         long approved = createReservation(
                 userId, labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
 
         MvcResult result = terminalCheckin(cookie, account, USER_PASSWORD).andReturn();
 
@@ -189,11 +189,11 @@ class TerminalCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest
         long firstReservation = createReservation(
                 userId, labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
         long secondReservation = createReservation(
                 userId, labId, "ROOM", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
 
         MvcResult choices = terminalCheckin(cookie, account, USER_PASSWORD).andReturn();
         assertThat(choices.getResponse().getStatus()).isEqualTo(200);
@@ -239,11 +239,11 @@ class TerminalCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest
         long firstReservation = createReservation(
                 userId, labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
         long secondReservation = createReservation(
                 userId, labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
 
         String expiredToken = choiceToken(cookie, account);
         redisTemplate.expire(choiceKey(expiredToken), Duration.ofMillis(-1));
@@ -256,7 +256,7 @@ class TerminalCheckinIntegrationTest extends AbstractCheckinNonTransactionalTest
         long outsideReservation = createReservation(
                 userIdByAccount(other), labId, "SEAT", "APPROVED",
                 LocalDateTime.of(2026, 10, 24, 8, 0),
-                LocalDateTime.of(2026, 10, 24, 9, 0), false);
+                LocalDateTime.of(2026, 10, 24, 9, 15), false);
         MvcResult wrongReservation = select(cookie, consumedToken, outsideReservation).andReturn();
         assertThat(wrongReservation.getResponse().getStatus()).isEqualTo(409);
         assertThat(redisTemplate.hasKey(choiceKey(consumedToken))).isFalse();

@@ -11,6 +11,7 @@ public record NormalizedReservation(
         LocalTime startTime,
         LocalTime endTime,
         int durationMinutes,
+        int periodCount,
         ReservationMode reservationMode,
         int attendeeCount,
         Integer seatCount,

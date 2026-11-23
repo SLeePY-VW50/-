@@ -2,6 +2,8 @@ package com.campus.lab.statistics;
 
 import com.campus.lab.common.BusinessException;
 import com.campus.lab.common.DayTimes;
+import com.campus.lab.period.PeriodCatalog;
+import com.campus.lab.period.PeriodSchedule;
 import com.campus.lab.reservation.ReservationMode;
 import com.campus.lab.reservation.ReservationStatus;
 import java.time.Clock;
@@ -26,10 +28,12 @@ public class StatisticsService {
             ReservationStatus.NO_SHOW, ReservationStatus.VIOLATION_TERMINATED);
 
     private final StatisticsRepository repository;
+    private final PeriodCatalog periodCatalog;
     private final Clock clock;
 
-    public StatisticsService(StatisticsRepository repository, Clock clock) {
+    public StatisticsService(StatisticsRepository repository, PeriodCatalog periodCatalog, Clock clock) {
         this.repository = repository;
+        this.periodCatalog = periodCatalog;
         this.clock = clock;
     }
 
@@ -163,11 +167,13 @@ public class StatisticsService {
         List<StatisticsViews.HeatmapDay> days = new ArrayList<>();
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
             DayTotals totals = calculated.get(new LabDate(labId, date));
+            PeriodSchedule schedule = totals.schedule;
             List<StatisticsViews.HeatmapSlot> slots = new ArrayList<>();
-            for (int slot = 0; slot < 48; slot++) {
-                double denominator = totals.openSeatCounts[slot] * 30.0;
+            for (int slot = 0; slot < schedule.slotCount(); slot++) {
+                double denominator = totals.openSeatCounts[slot] * schedule.periodAt(slot).lengthMinutes();
                 slots.add(new StatisticsViews.HeatmapSlot(
-                        slot, time(slot * 30), time((slot + 1) * 30),
+                        slot, schedule.format(schedule.startTime(slot)),
+                        schedule.format(schedule.endTime(slot + 1)),
                         ratio(totals.plannedSlots[slot], denominator),
                         ratio(totals.actualSlots[slot], denominator)));
             }
@@ -210,7 +216,8 @@ public class StatisticsService {
                 new StatisticsRepository.LabDay(labId, date.getDayOfWeek().getValue()));
         Long baseline = facts.dailyBaselines().get(
                 new StatisticsRepository.LabStatDate(labId, date));
-        DayTotals day = new DayTotals(availableSeats, openMask(rule), baseline);
+        PeriodSchedule schedule = periodCatalog.forLab(labId);
+        DayTotals day = new DayTotals(availableSeats, schedule, openMask(rule, schedule), baseline);
         LocalDateTime now = LocalDateTime.now(clock);
         for (StatisticsRepository.ReservationRow reservation : facts.reservations()) {
             if (reservation.labId() != labId || !reservation.date().equals(date)) {
@@ -227,7 +234,7 @@ public class StatisticsService {
                     facts.assignments().getOrDefault(reservation.reservationId(), List.of());
             if (reservation.mode() == ReservationMode.ROOM) {
                 if (assignments.isEmpty()) {
-                    day.apply(assignmentMask(reservation), reservation, now, day.roomSeatUnits());
+                    day.apply(assignmentMask(reservation, day.schedule), reservation, now, day.roomSeatUnits());
                 } else {
                     for (StatisticsRepository.AssignmentRow assignment : assignments) {
                         day.apply(assignment.mask(), reservation, now, 1);
@@ -243,7 +250,7 @@ public class StatisticsService {
     }
 
     private static DayTotals aggregate(Map<LabDate, DayTotals> calculated, LocalDate date) {
-        DayTotals aggregate = new DayTotals(0, 0, null);
+        DayTotals aggregate = new DayTotals(0, com.campus.lab.period.DongfangPeriodTable.schedule(), 0, null);
         calculated.forEach((key, value) -> {
             if (key.date().equals(date)) {
                 aggregate.plannedMinutes += value.plannedMinutes;
@@ -254,30 +261,20 @@ public class StatisticsService {
         return aggregate;
     }
 
-    private static long assignmentMask(StatisticsRepository.ReservationRow reservation) {
-        long mask = 0;
-        for (int slot = 0; slot < 48; slot++) {
-            LocalDateTime slotStart = reservation.date().atStartOfDay().plusMinutes(slot * 30L);
-            LocalDateTime slotEnd = slotStart.plusMinutes(30);
-            if (reservation.startTime().isBefore(slotEnd)
-                    && reservation.endTime().isAfter(slotStart)) {
-                mask |= 1L << slot;
-            }
-        }
-        return mask;
+    private static long assignmentMask(
+            StatisticsRepository.ReservationRow reservation, PeriodSchedule schedule) {
+        return schedule.overlapMask(
+                reservation.startTime().toLocalTime(), reservation.endTime().toLocalTime());
     }
 
-    private static long openMask(StatisticsRepository.RuleRow rule) {
+    private static long openMask(StatisticsRepository.RuleRow rule, PeriodSchedule schedule) {
         if (rule == null) {
             return 0;
         }
-        int start = DayTimes.minuteOfDay(DayTimes.parseDatabaseTime(rule.openTime()), false) / 30;
-        int end = DayTimes.minuteOfDay(DayTimes.parseDatabaseTime(rule.closeTime()), true) / 30;
-        long mask = 0;
-        for (int slot = start; slot < end; slot++) {
-            mask |= 1L << slot;
-        }
-        return mask;
+        return schedule.bookableMask(
+                DayTimes.parseDatabaseTime(rule.openTime()),
+                DayTimes.parseDatabaseTime(rule.closeTime()),
+                rule.openStartPeriod(), rule.openEndPeriod());
     }
 
     private static void requireLab(StatisticsRepository.Facts facts, long labId) {
@@ -297,33 +294,35 @@ public class StatisticsService {
         return denominator == 0 ? 0 : numerator / denominator;
     }
 
-    private static String time(int minuteOfDay) {
-        return String.format(java.util.Locale.ROOT, "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60);
-    }
-
     private record LabDate(long labId, LocalDate date) {
     }
 
     private static final class DayTotals {
-        private final double[] openSeatCounts = new double[48];
-        private final double[] plannedSlots = new double[48];
-        private final double[] actualSlots = new double[48];
+        private final PeriodSchedule schedule;
+        private final double[] openSeatCounts;
+        private final double[] plannedSlots;
+        private final double[] actualSlots;
         private double plannedMinutes;
         private double actualMinutes;
         private double availableMinutes;
         private long reservationCount;
         private long noShowCount;
-        private int openSlotCount;
+        private int openMinutes;
 
-        private DayTotals(int availableSeats, long openMask, Long baselineMinutes) {
-            for (int slot = 0; slot < 48; slot++) {
+        private DayTotals(int availableSeats, PeriodSchedule schedule, long openMask, Long baselineMinutes) {
+            this.schedule = schedule;
+            int slots = schedule.slotCount();
+            openSeatCounts = new double[slots];
+            plannedSlots = new double[slots];
+            actualSlots = new double[slots];
+            for (int slot = 0; slot < slots; slot++) {
                 if ((openMask & (1L << slot)) != 0) {
-                    openSlotCount++;
+                    openMinutes += schedule.periodAt(slot).lengthMinutes();
                 }
             }
             availableMinutes = baselineMinutes == null
-                    ? availableSeats * openSlotCount * 30.0 : baselineMinutes;
-            for (int slot = 0; slot < 48; slot++) {
+                    ? availableSeats * (double) openMinutes : baselineMinutes;
+            for (int slot = 0; slot < slots; slot++) {
                 if ((openMask & (1L << slot)) != 0) {
                     openSeatCounts[slot] = baselineMinutes == null
                             ? availableSeats : roomSeatUnits();
@@ -336,7 +335,7 @@ public class StatisticsService {
         }
 
         private double roomSeatUnits() {
-            return openSlotCount == 0 ? 0 : availableMinutes / (openSlotCount * 30.0);
+            return openMinutes == 0 ? 0 : availableMinutes / openMinutes;
         }
 
         private void apply(
@@ -349,14 +348,15 @@ public class StatisticsService {
             LocalDateTime actualEnd = reservation.checkoutTime() != null
                     ? reservation.checkoutTime()
                     : now.isBefore(reservation.endTime()) ? now : reservation.endTime();
-            for (int slot = 0; slot < 48; slot++) {
+            for (int slot = 0; slot < schedule.slotCount(); slot++) {
                 if ((originalMask & (1L << slot)) == 0 || openSeatCounts[slot] == 0) {
                     continue;
                 }
-                plannedMinutes += 30 * weight;
-                plannedSlots[slot] += 30 * weight;
-                LocalDateTime slotStart = reservation.date().atStartOfDay().plusMinutes(slot * 30L);
-                LocalDateTime slotEnd = slotStart.plusMinutes(30);
+                int periodMinutes = schedule.periodAt(slot).lengthMinutes();
+                plannedMinutes += periodMinutes * weight;
+                plannedSlots[slot] += periodMinutes * weight;
+                LocalDateTime slotStart = reservation.date().atTime(schedule.startTime(slot));
+                LocalDateTime slotEnd = reservation.date().atTime(schedule.endTime(slot + 1));
                 LocalDateTime start = reservation.checkinTime().isAfter(slotStart)
                         ? reservation.checkinTime() : slotStart;
                 LocalDateTime end = actualEnd.isBefore(slotEnd) ? actualEnd : slotEnd;
@@ -369,10 +369,11 @@ public class StatisticsService {
         }
 
         private void addPlannedOnly(long originalMask, double weight) {
-            for (int slot = 0; slot < 48; slot++) {
+            for (int slot = 0; slot < schedule.slotCount(); slot++) {
                 if ((originalMask & (1L << slot)) != 0 && openSeatCounts[slot] > 0) {
-                    plannedMinutes += 30 * weight;
-                    plannedSlots[slot] += 30 * weight;
+                    int periodMinutes = schedule.periodAt(slot).lengthMinutes();
+                    plannedMinutes += periodMinutes * weight;
+                    plannedSlots[slot] += periodMinutes * weight;
                 }
             }
         }

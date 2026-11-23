@@ -28,9 +28,14 @@ class AdminRuleValidationIntegrationTest extends AbstractIntegrationTest {
         String token = loginAndGetToken("A1001", "Lab@2026");
         long labId = labId();
         long ruleId = ruleId(labId);
-        Map<String, Object> request = new HashMap<>(overrides);
-        request.put("openTime", "08:00");
-        request.put("closeTime", "22:00");
+        Map<String, Object> request = new HashMap<>();
+        request.put("openStartPeriod", 1);
+        request.put("openEndPeriod", 10);
+        request.put("advanceMinDays", 0);
+        request.put("advanceMaxDays", 14);
+        request.put("minPeriods", 1);
+        request.put("maxPeriods", 5);
+        request.putAll(overrides);
 
         mockMvc.perform(put("/api/admin/labs/{labId}/rules/{ruleId}", labId, ruleId)
                         .header("Authorization", "Bearer " + token)
@@ -39,15 +44,15 @@ class AdminRuleValidationIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value(
-                        org.hamcrest.Matchers.containsString("30")));
+                        org.hamcrest.Matchers.containsString("节")));
         assertNullableOverridesRemain(ruleId);
     }
 
     static Stream<Arguments> invalidDurationOverrides() {
         return Stream.of(
-                Arguments.of(Map.of("minDurationMinutes", 45, "maxDurationMinutes", 90)),
-                Arguments.of(Map.of("minDurationMinutes", 30, "maxDurationMinutes", 300)),
-                Arguments.of(Map.of("minDurationMinutes", 270)));
+                Arguments.of(Map.of("minPeriods", 4, "maxPeriods", 2)),
+                Arguments.of(Map.of("openEndPeriod", 20, "minPeriods", 1, "maxPeriods", 5)),
+                Arguments.of(Map.of("minPeriods", 3, "maxPeriods", 1)));
     }
 
     @Test
@@ -60,36 +65,36 @@ class AdminRuleValidationIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "openTime", "08:00", "closeTime", "22:00",
-                                "minDurationMinutes", 30, "maxDurationMinutes", 240))))
+                                "openStartPeriod", 1, "openEndPeriod", 10,
+                                "minPeriods", 1, "maxPeriods", 5,
+                                "advanceMinDays", 0, "advanceMaxDays", 14))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.minDurationMinutes").value(30))
-                .andExpect(jsonPath("$.data.maxDurationMinutes").value(240));
+                .andExpect(jsonPath("$.data.minPeriods").value(1))
+                .andExpect(jsonPath("$.data.maxPeriods").value(5));
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT min_duration_minutes FROM t_time_rule WHERE rule_id = ?",
-                Integer.class, ruleId)).isEqualTo(30);
+                "SELECT min_periods FROM t_time_rule WHERE rule_id = ?",
+                Integer.class, ruleId)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT max_duration_minutes FROM t_time_rule WHERE rule_id = ?",
-                Integer.class, ruleId)).isEqualTo(240);
+                "SELECT max_periods FROM t_time_rule WHERE rule_id = ?",
+                Integer.class, ruleId)).isEqualTo(5);
     }
 
     @Test
     void invalidGlobalDurationConfigurationFailsClearlyWhenRulesAreLoaded() {
         jdbcTemplate.update(
-                "UPDATE t_sys_config SET config_value = '300' "
-                        + "WHERE config_key = 'reservation.duration.max.minutes'");
+                "UPDATE t_sys_config SET config_value = '0' "
+                        + "WHERE config_key = 'reservation.duration.max.periods'");
 
         assertThatThrownBy(() -> resourceService.getRules(labId()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("30")
-                .hasMessageContaining("240");
+                .hasMessageContaining("节");
     }
 
     private void assertNullableOverridesRemain(long ruleId) {
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM t_time_rule
-                WHERE rule_id = ? AND min_duration_minutes IS NULL
-                  AND max_duration_minutes IS NULL
+                WHERE rule_id = ? AND min_periods IS NULL
+                  AND max_periods IS NULL
                 """, Integer.class, ruleId)).isEqualTo(1);
     }
 

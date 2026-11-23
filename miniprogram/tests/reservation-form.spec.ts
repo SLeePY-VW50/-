@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { cancelReservation, createReservation, myReservations, qrCheckin, reservationDetail, wechatCheckout } from '../miniprogram/api/reservations'
-import { buildReservationPayload, type ReservationFormState } from '../miniprogram/utils/reservation-form'
+import { buildReservationPayload, prepareReservationSubmit, type ReservationFormState } from '../miniprogram/utils/reservation-form'
+import { recommendationFormQuery } from '../miniprogram/utils/recommendations'
 
 declare const require: (id: string) => { readFileSync(path: string, encoding: string): string }
 
@@ -8,11 +9,11 @@ const state: ReservationFormState = {
   allocationMode: 'FIXED',
   labId: 1,
   date: '2026-11-08',
-  startTime: '14:00',
-  endTime: '16:00',
-  windowStart: '08:00',
-  windowEnd: '12:00',
-  durationMinutes: 60,
+  startTime: '14:15',
+  endTime: '16:45',
+  windowStart: '08:30',
+  windowEnd: '12:30',
+  durationMinutes: 2,
   reservationMode: 'SEAT',
   attendeeCount: 2,
   purpose: ' 项目实验 ',
@@ -27,11 +28,11 @@ describe('reservation payload', () => {
       allocationMode: 'FIXED',
       labId: 1,
       date: '2026-11-08',
-      startTime: '14:00',
-      endTime: '16:00',
+      startTime: '14:15',
+      endTime: '16:45',
       windowStart: null,
       windowEnd: null,
-      durationMinutes: null,
+      durationPeriods: null,
       reservationMode: 'SEAT',
       attendeeCount: 2,
       seatCount: 2,
@@ -47,9 +48,9 @@ describe('reservation payload', () => {
     })).toMatchObject({
       startTime: null,
       endTime: null,
-      windowStart: '08:00',
-      windowEnd: '12:00',
-      durationMinutes: 60,
+      windowStart: '08:30',
+      windowEnd: '12:30',
+      durationPeriods: 2,
       seatCount: null,
       preferences: { nearWindow: true, minSpecLevel: 'GPU' },
     })
@@ -58,22 +59,22 @@ describe('reservation payload', () => {
   it('rejects missing required fields, excessive duration and invalid windows', () => {
     expect(() => buildReservationPayload({ ...state, purpose: ' ' })).toThrow('请完整填写实验室、日期、人数和用途')
     expect(() => buildReservationPayload({ ...state, attendeeCount: 0 })).toThrow('请完整填写实验室、日期、人数和用途')
-    expect(() => buildReservationPayload({ ...state, startTime: '08:00', endTime: '13:00' })).toThrow('固定预约一次最多选择8个时间片')
-    expect(() => buildReservationPayload({ ...state, startTime: '16:00', endTime: '14:00' })).toThrow('固定预约一次最多选择8个时间片')
-    expect(() => buildReservationPayload({ ...state, allocationMode: 'SCHEDULABLE', durationMinutes: 45 })).toThrow('可调度时长必须为30到240分钟之间的30分钟倍数')
-    expect(() => buildReservationPayload({ ...state, allocationMode: 'SCHEDULABLE', windowEnd: '08:30' })).toThrow('预约时长不能超过可调度请求窗口')
-    expect(() => buildReservationPayload({ ...state, allocationMode: 'SCHEDULABLE', durationMinutes: 240, windowEnd: '11:30' })).toThrow('预约时长不能超过可调度请求窗口')
+    expect(() => buildReservationPayload({ ...state, startTime: '08:30', endTime: '17:30' })).toThrow('固定预约一次最多选择5节')
+    expect(() => buildReservationPayload({ ...state, startTime: '16:45', endTime: '14:15' })).toThrow('固定预约一次最多选择5节')
+    expect(() => buildReservationPayload({ ...state, allocationMode: 'SCHEDULABLE', durationMinutes: 6 })).toThrow('可调度节数必须为1到5节')
+    expect(() => buildReservationPayload({ ...state, allocationMode: 'SCHEDULABLE', windowEnd: '09:15' })).toThrow('预约节数不能超过可调度请求窗口')
+    expect(() => buildReservationPayload({ ...state, allocationMode: 'SCHEDULABLE', durationMinutes: 5, windowEnd: '10:00' })).toThrow('预约节数不能超过可调度请求窗口')
   })
 
-  it('accepts exact 240-minute ranges ending at 24:00', () => {
-    expect(buildReservationPayload({ ...state, startTime: '20:00', endTime: '24:00' })).toMatchObject({ startTime: '20:00', endTime: '24:00' })
+  it('accepts consecutive evening periods across the short break', () => {
+    expect(buildReservationPayload({ ...state, startTime: '18:30', endTime: '20:50' })).toMatchObject({ startTime: '18:30', endTime: '20:50' })
     expect(buildReservationPayload({
       ...state,
       allocationMode: 'SCHEDULABLE',
-      windowStart: '20:00',
-      windowEnd: '24:00',
-      durationMinutes: 240,
-    })).toMatchObject({ windowStart: '20:00', windowEnd: '24:00', durationMinutes: 240 })
+      windowStart: '18:30',
+      windowEnd: '20:50',
+      durationMinutes: 2,
+    })).toMatchObject({ windowStart: '18:30', windowEnd: '20:50', durationPeriods: 2 })
   })
 
   it('accepts exactly 500 purpose characters and rejects longer text', () => {
@@ -117,9 +118,11 @@ interface ReservationPageDefinition {
     durationOptions: number[]
     durationIndex: number
     submitting: boolean
+    confirmed: boolean
     error: string
     success: string
   }
+  toggleConfirm(): void
   onLoad(query: Record<string, string>): Promise<void>
   onAllocation(event: WechatMiniprogram.TouchEvent): void
   onMode(event: WechatMiniprogram.TouchEvent): void
@@ -242,7 +245,7 @@ describe('reservation form page', () => {
     await page.submit()
 
     expect(request).not.toHaveBeenCalled()
-    expect(page.data.error).toBe('时间必须按30分钟对齐')
+    expect(page.data.error).toBe('预约起止必须落在节次的开始和结束')
     expect(page.data.submitting).toBe(false)
   })
 
@@ -298,6 +301,7 @@ describe('reservation form page', () => {
     const page = await loadReservationPage()
     const retained = { ...state, allocationMode: 'SCHEDULABLE' as const, purpose: '网络失败后仍需保留', attendeeCount: 4 }
     fillReservationPage(page, retained)
+    page.setData({ confirmed: true })
 
     await page.submit()
 
@@ -315,9 +319,9 @@ describe('reservation form page', () => {
     page.onCount({ detail: { value: '5' } } as WechatMiniprogram.Input)
     page.onSpec({ detail: { value: '3' } } as WechatMiniprogram.PickerChange)
     page.onWindow({ detail: { value: '1' } } as WechatMiniprogram.PickerChange)
-    page.onDuration({ detail: { value: '7' } } as WechatMiniprogram.PickerChange)
+    page.onDuration({ detail: { value: '4' } } as WechatMiniprogram.PickerChange)
 
-    expect(page.data).toMatchObject({ allocationMode: 'SCHEDULABLE', reservationMode: 'ROOM', purpose: '新用途', attendeeCount: 5, specIndex: 3, minSpecLevel: 'GPU', windowIndex: 1, nearWindow: 'true', durationIndex: 7, durationMinutes: 240 })
+    expect(page.data).toMatchObject({ allocationMode: 'SCHEDULABLE', reservationMode: 'ROOM', purpose: '新用途', attendeeCount: 5, specIndex: 3, minSpecLevel: 'GPU', windowIndex: 1, nearWindow: 'true', durationIndex: 4, durationMinutes: 5 })
   })
 
   it('provides associated labels, live errors, large targets and app registration', () => {
@@ -334,9 +338,50 @@ describe('reservation form page', () => {
     expect(wxml).toContain('maxlength="500"')
     expect(wxml).toContain('aria-role="alert"')
     expect(wxml).toContain('aria-live="assertive"')
-    expect(wxml).toContain('disabled="{{submitting}}"')
+    expect(wxml).toContain("disabled=\"{{submitting || (allocationMode === 'SCHEDULABLE' && !confirmed)}}\"")
     expect(wxss).toContain('min-height: 96rpx')
     expect(app.pages).toContain('pages/reservation-form/index')
     expect(app.tabBar.list.map(item => item.pagePath)).not.toContain('pages/reservation-form/index')
+  })
+
+  it('does not submit a schedulable request until the user confirms', async () => {
+    const request = vi.fn()
+    vi.stubGlobal('wx', { request, getStorageSync: () => '' })
+    const page = await loadReservationPage()
+    fillReservationPage(page, { allocationMode: 'SCHEDULABLE' })
+
+    await page.submit()
+
+    expect(request).not.toHaveBeenCalled()
+    expect(page.data.error).toBe('未经确认不能提交可调度预约')
+    page.toggleConfirm()
+    expect(page.data.confirmed).toBe(true)
+    expect(() => prepareReservationSubmit({ ...state, allocationMode: 'SCHEDULABLE' }, true)).not.toThrow()
+    expect(prepareReservationSubmit({ ...state, allocationMode: 'SCHEDULABLE' }, true)).toMatchObject({
+      allocationMode: 'SCHEDULABLE',
+      windowStart: '08:30',
+      windowEnd: '12:30',
+      durationPeriods: 2,
+      attendeeCount: 2,
+    })
+  })
+
+  it('fills the fixed form from a recommendation without submitting', () => {
+    const query = recommendationFormQuery({
+      labId: 4,
+      date: '2026-11-08',
+      mode: 'ROOM',
+      attendeeCount: 6,
+      startTime: '08:00',
+      endTime: '09:00',
+    })
+    expect(query).toContain('labId=4')
+    expect(query).toContain('date=2026-11-08')
+    expect(query).toContain('startTime=08:00')
+    expect(query).toContain('endTime=09:00')
+    expect(query).toContain('mode=ROOM')
+    expect(query).toContain('attendeeCount=6')
+    expect(query).toContain('allocationMode=FIXED')
+    expect(query).not.toContain('submit')
   })
 })
