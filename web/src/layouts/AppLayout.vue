@@ -15,6 +15,7 @@ const navItems: NavItem[] = [
   { path: '/assistant', label: '助手', roles: ['STUDENT', 'TEACHER'] },
   { path: '/statistics', label: '统计', roles: ['TEACHER', 'LAB_ADMIN', 'SYS_ADMIN'] },
   { path: '/schedules', label: '排程', roles: ['LAB_ADMIN', 'SYS_ADMIN'] },
+  { path: '/timetable', label: '课表', roles: ['LAB_ADMIN', 'SYS_ADMIN'] },
   { path: '/credit', label: '信用', roles: ['STUDENT', 'TEACHER'] },
   { path: '/admin/resources', label: '资源', roles: ['SYS_ADMIN'] },
   { path: '/admin/users', label: '用户', roles: ['SYS_ADMIN'] },

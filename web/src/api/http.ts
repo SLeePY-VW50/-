@@ -6,12 +6,14 @@ export const AUTH_USER_KEY = 'campus.lab.user'
 export class ApiError extends Error {
   status?: number
   code?: string | number
+  payload?: unknown
 
-  constructor(message: string, status?: number, code?: string | number) {
+  constructor(message: string, status?: number, code?: string | number, payload?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.payload = payload
   }
 }
 
@@ -41,7 +43,7 @@ client.interceptors.response.use(async (response) => {
   }
   if (body.code === 0) return body.data
   throw new ApiError(body.message || '请求失败', response.status, body.code)
-}, async (error: AxiosError<{ message?: string; code?: string | number }>) => {
+}, async (error: AxiosError<{ message?: string; code?: string | number; data?: unknown }>) => {
   const status = error.response?.status
   const data = error.response?.data
   if (status === 401) {
@@ -57,7 +59,7 @@ client.interceptors.response.use(async (response) => {
     }
   }
   const message = data?.message || (status === 403 ? '当前账号无权执行此操作' : status === 409 ? '操作冲突，请检查后重试' : status ? '服务暂时没有返回结果，请稍后重试' : '网络请求失败，请检查连接')
-  throw new ApiError(message, status, data?.code)
+  throw new ApiError(message, status, data?.code, data?.data)
 })
 
 export function errorMessage(error: unknown) {

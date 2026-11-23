@@ -72,7 +72,7 @@ class ReservationMigrationUpgradeIntegrationTest {
                     }
                 }
                 assertThat(versions).containsExactly(
-                        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
+                        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
                 assertThat(queryInt(statement, """
                         SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
                         WHERE table_schema = DATABASE()
@@ -153,7 +153,7 @@ class ReservationMigrationUpgradeIntegrationTest {
                         SELECT COUNT(*) FROM information_schema.tables
                         WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
                           AND table_name <> 'flyway_schema_history'
-                        """)).isEqualTo(25);
+                        """)).isEqualTo(31);
             }
         } finally {
             dropDedicatedDatabase(administratorPassword);

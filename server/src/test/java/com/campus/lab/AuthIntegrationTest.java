@@ -26,7 +26,9 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
             "t_slot_bitmap", "t_seat_bitmap",
             "t_sys_config", "t_reservation_batch", "t_reservation", "t_reservation_seat",
             "t_reservation_log", "t_violation", "t_credit_record", "t_appeal",
-            "t_schedule_task", "t_schedule_result", "t_algorithm_experiment", "t_stat_daily");
+            "t_schedule_task", "t_schedule_result", "t_algorithm_experiment", "t_stat_daily",
+            "t_semester", "t_lab_admin", "t_timetable_entry", "t_timetable_roster",
+            "t_timetable_session", "t_timetable_attendance");
 
     @Test
     void migrationCreatesTheExactSchemaAndReferenceDataContract() {
@@ -40,7 +42,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                   AND table_type = 'BASE TABLE'
                   AND table_name <> 'flyway_schema_history'
                 """, String.class);
-        assertThat(tables).hasSize(25);
+        assertThat(tables).hasSize(31);
         assertThat(tables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
 
         Set<String> reservationColumns = jdbcTemplate.queryForList("""
@@ -49,7 +51,7 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 WHERE table_schema = DATABASE() AND table_name = 't_reservation'
                 """, String.class).stream().collect(Collectors.toSet());
         assertThat(reservationColumns).contains(
-                "batch_id", "user_id", "allocation_mode", "reservation_mode", "request_date",
+                "batch_id", "user_id", "allocation_mode", "reservation_mode", "occupancy_source", "request_date",
                 "request_window_start", "request_window_end", "requested_duration_minutes",
                 "lab_id", "start_time", "end_time", "attendee_count", "seat_count",
                 "purpose", "preferences",
