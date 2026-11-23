@@ -31,6 +31,23 @@ const batch = reactive({ courseName: '', labId: null as number | null, attendeeC
 const startOptions = PERIOD_STARTS
 const endOptions = PERIOD_ENDS
 const statuses = ['PENDING_SCHEDULE', 'APPROVED', 'IN_USE', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'EXPIRED', 'VIOLATION_TERMINATED']
+interface CourseSession {
+  sessionId: number
+  reservationId: number
+  labName: string
+  courseName: string
+  className: string
+  date: string
+  startPeriod: number
+  endPeriod: number
+  startTime: string
+  checkedIn: boolean
+}
+const courses = ref<CourseSession[]>([])
+async function loadCourses() {
+  if (isAdmin.value) return
+  try { courses.value = await http.get<CourseSession[]>('/api/timetable/mine') } catch { courses.value = [] }
+}
 
 async function load() {
   loading.value = true; error.value = ''
@@ -83,7 +100,7 @@ async function submitBatch() {
   } catch (cause) { batchError.value = errorMessage(cause) } finally { actionLoading.value = false }
 }
 onMounted(async () => {
-  await load()
+  await Promise.all([load(), loadCourses()])
   if (isAdmin.value || isTeacher.value) {
     try { labs.value = await http.get<Lab[]>('/api/labs') } catch (cause) { error.value = errorMessage(cause) }
   }
@@ -94,6 +111,7 @@ onMounted(async () => {
   <div class="page">
     <header class="page-header"><div><span class="eyebrow">预约台账</span><h1>{{ isAdmin ? '预约管理查询' : '我的预约' }}</h1><p>{{ isAdmin ? '管理员仅查询预约、正式时段与座位，不提供写操作。' : '查看排程结果与正式座位，或取消仍可撤销的预约。' }}</p></div><button v-if="isTeacher" class="button button--primary" type="button" @click="openBatch">新建课程批次</button></header>
     <div v-if="success" class="success-banner" role="status">{{ success }}</div><div v-if="error" class="error-banner" role="alert">{{ error }}</div>
+    <section v-if="courses.length" class="panel"><div class="panel__header"><div><h2>近期课程</h2><span class="panel__subtitle">名单内学生在实验室终端签到，或扫描实验室二维码。课程占用整间，不走个人预约。</span></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>课程</th><th>班级</th><th>实验室</th><th>日期</th><th>节次</th><th>签到</th></tr></thead><tbody><tr v-for="course in courses" :key="course.sessionId"><td>{{ course.courseName }}</td><td>{{ course.className }}</td><td>{{ course.labName }}</td><td class="mono">{{ course.date }}</td><td class="mono">第{{ course.startPeriod }}–{{ course.endPeriod }}节</td><td>{{ course.checkedIn ? '已签到' : '未签到' }}</td></tr></tbody></table></div></section>
     <section class="panel">
       <div class="toolbar">
         <label v-if="isAdmin" class="field"><span>实验室</span><select v-model.number="filters.labId"><option :value="null">全部实验室</option><option v-for="lab in labs" :key="lab.labId" :value="lab.labId">{{ lab.name }}</option></select></label>

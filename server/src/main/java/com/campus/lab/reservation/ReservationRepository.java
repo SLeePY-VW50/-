@@ -385,8 +385,28 @@ public class ReservationRepository {
         return jdbcTemplate.update("""
                 UPDATE t_reservation SET status = 'NO_SHOW'
                 WHERE resv_id = ? AND status = 'APPROVED' AND checkin_time IS NULL
+                  AND occupancy_source = 'PERSONAL'
                   AND start_time < DATE_SUB(?, INTERVAL ? MINUTE)
                 """, reservationId, Timestamp.valueOf(now), graceMinutes);
+    }
+
+    public boolean isTimetableReservation(long reservationId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM t_reservation
+                WHERE resv_id = ? AND occupancy_source = 'TIMETABLE'
+                """, Integer.class, reservationId);
+        return count != null && count > 0;
+    }
+
+    public int checkinTimetableReservation(
+            long reservationId, long labId, LocalDateTime checkinTime,
+            com.campus.lab.checkin.CheckinChannel channel) {
+        return jdbcTemplate.update("""
+                UPDATE t_reservation
+                SET status = 'IN_USE', checkin_time = ?, checkin_channel = ?
+                WHERE resv_id = ? AND lab_id = ? AND status = 'APPROVED'
+                  AND occupancy_source = 'TIMETABLE'
+                """, Timestamp.valueOf(checkinTime), channel.name(), reservationId, labId);
     }
 
     public int completeEndedReservation(long reservationId, LocalDateTime now) {

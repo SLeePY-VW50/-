@@ -41,6 +41,16 @@ public class LocalDemoData implements ApplicationRunner {
         createTimeRules(secondLabId);
         createTerminal(firstLabId);
         createCheckinDemoLaboratory();
+        assignLabAdmin("L1001", firstLabId);
+        assignLabAdmin("L1001", secondLabId);
+    }
+
+    private void assignLabAdmin(String account, long labId) {
+        jdbcTemplate.update("""
+                INSERT INTO t_lab_admin (lab_id, user_id)
+                SELECT ?, user_id FROM sys_user WHERE account = ?
+                ON DUPLICATE KEY UPDATE id = t_lab_admin.id
+                """, labId, account);
     }
 
     private void createCheckinDemoLaboratory() {

@@ -39,7 +39,8 @@ public class ReservationScheduledTransactionService {
                 repository.lockReservationForCancellation(reservationId);
         if (reservation == null || reservation.status() != ReservationStatus.APPROVED
                 || reservation.labId() == null || reservation.startTime() == null
-                || repository.hasCheckin(reservationId)) {
+                || repository.hasCheckin(reservationId)
+                || repository.isTimetableReservation(reservationId)) {
             return;
         }
         LabLockKey requiredLock = new LabLockKey(reservation.labId(), reservation.date());
